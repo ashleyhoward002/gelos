@@ -10,11 +10,13 @@ function RegisterForm() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     const password = formData.get("password") as string;
     const confirmPassword = formData.get("confirmPassword") as string;
@@ -31,9 +33,17 @@ function RegisterForm() {
       return;
     }
 
-    const result = await signUp(formData, redirectTo || undefined);
-    if (result?.error) {
-      setError(result.error);
+    try {
+      const result = await signUp(formData, redirectTo || undefined);
+      if (result?.error) {
+        setError(result.error);
+        setLoading(false);
+      } else if (result?.requiresConfirmation) {
+        setSuccess(result.message || "Check your email to confirm your account!");
+        setLoading(false);
+      }
+    } catch {
+      // If signUp redirects, this won't be reached
       setLoading(false);
     }
   }
@@ -52,6 +62,18 @@ function RegisterForm() {
           Create Account
         </h2>
 
+        {success ? (
+          <div className="text-center py-8">
+            <div className="text-5xl mb-4">📧</div>
+            <h3 className="text-xl font-heading font-semibold text-slate-dark mb-2">
+              Check Your Email
+            </h3>
+            <p className="text-slate-medium mb-4">{success}</p>
+            <p className="text-sm text-slate-medium">
+              Click the link in your email to confirm your account and complete registration.
+            </p>
+          </div>
+        ) : (
         <form action={handleSubmit} className="space-y-4">
           {error && (
             <div className="bg-error/10 border border-error text-error px-4 py-3 rounded-lg text-sm">
@@ -125,7 +147,9 @@ function RegisterForm() {
             {loading ? "Creating account..." : "Create Account"}
           </button>
         </form>
+        )}
 
+        {!success && (
         <p className="mt-6 text-center text-slate-medium">
           Already have an account?{" "}
           <Link
@@ -135,6 +159,7 @@ function RegisterForm() {
             Sign in
           </Link>
         </p>
+        )}
       </div>
     </div>
   );

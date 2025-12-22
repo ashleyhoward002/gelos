@@ -43,6 +43,8 @@ export async function updateSession(request: NextRequest) {
   if (isProtectedPath && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    // Preserve the original URL as redirect parameter
+    url.searchParams.set("redirect", request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
 
@@ -54,7 +56,10 @@ export async function updateSession(request: NextRequest) {
 
   if (isAuthPath && user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    // Check if there's a redirect parameter and use it
+    const redirectTo = request.nextUrl.searchParams.get("redirect");
+    url.pathname = redirectTo || "/dashboard";
+    url.search = ""; // Clear search params after using redirect
     return NextResponse.redirect(url);
   }
 
