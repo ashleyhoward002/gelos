@@ -1,0 +1,605 @@
+"use server";
+
+import { createServerSupabaseClient } from "./supabase-server";
+import { revalidatePath } from "next/cache";
+
+export interface Photo {
+  id: string;
+  group_id: string;
+  outing_id: string | null;
+  uploaded_by: string;
+  file_url: string;
+  thumbnail_url: string | null;
+  caption: string | null;
+  taken_at: string | null;
+  is_favorite: boolean;
+  created_at: string;
+  original_filename?: string | null;
+  file_size?: number | null;
+  uploader?: {
+    id: string;
+    display_name: string | null;
+    full_name: string | null;
+    avatar_url: string | null;
+  };
+  outing?: {
+    id: string;
+    title: string;
+  } | null;
+}
+
+export interface DuplicateCheck {
+  file: File;
+  isDuplicate: boolean;
+  existingPhoto?: Photo;
+}
+
+// Check for potential duplicate photos by filename and file size
+export async function checkForDuplicates(
+  groupId: string,
+  files: { name: string; size: number }[]
+): Promise<{ filename: string; size: number; existingPhoto: Photo }[]> {
+  const supabase = await createServerSupabaseClient();
+
+  // Get all photos in the group with their original filenames and sizes
+  const { data: photos, error } = await supabase
+    .from("photos")
+    .select("id, file_url, original_filename, file_size, caption, created_at")
+    .eq("group_id", groupId);
+
+  if (error || !photos) {
+    console.error("Error checking duplicates:", error);
+    return [];
+  }
+
+  const duplicates: { filename: string; size: number; existingPhoto: Photo }[] = [];
+
+  for (const file of files) {
+    // Check for exact match (same filename AND same file size)
+    const existing = photos.find(
+      (photo) =>
+        photo.original_filename === file.name && photo.file_size === file.size
+    );
+
+    if (existing) {
+      duplicates.push({
+        filename: file.name,
+        size: file.size,
+        existingPhoto: existing as Photo,
+      });
+    }
+  }
+
+  return duplicates;
+}
+
+export async function getPhotos(
+  groupId: string,
+  filter?: "all" | "favorites" | string // string for outing_id
+) {
+  const supabase = await createServerSupabaseClient();
+
+  let query = supabase
+    .from("photos")
+    .select("*")
+    .eq("group_id", groupId)
+    .order("created_at", { ascending: false });
+
+  if (filter === "favorites") {
+    query = query.eq("is_favorite", true);
+  } else if (filter && filter !== "all") {
+    // Filter by outing_id
+    query = query.eq("outing_id", filter);
+  }
+
+  const { data: photos, error } = await query;
+
+  if (error) {
+    console.error("Error fetching photos:", error);
+    return [];
+  }
+
+  // Fetch uploader info separately
+  const photosWithUploader = await Promise.all(
+    (photos || []).map(async (photo) => {
+      const { data: uploader } = await supabase
+        .from("users")
+        .select("id, display_name, full_name, avatar_url")
+        .eq("id", photo.uploaded_by)
+        .single();
+
+      let outing = null;
+      if (photo.outing_id) {
+        const { data: outingData } = await supabase
+          .from("outings")
+          .select("id, title")
+          .eq("id", photo.outing_id)
+          .single();
+        outing = outingData;
+      }
+
+      return {
+        ...photo,
+        uploader,
+        outing,
+      };
+    })
+  );
+
+  return photosWithUploader as Photo[];
+}
+
+export async function getPhoto(photoId: string) {
+  const supabase = await createServerSupabaseClient();
+
+  const { data: photo, error } = await supabase
+    .from("photos")
+    .select(`
+      *,
+      uploader:users!uploaded_by (
+        id,
+        display_name,
+        full_name,
+        avatar_url
+      ),
+      outing:outings (
+        id,
+        title
+      )
+    `)
+    .eq("id", photoId)
+    .single();
+
+  if (error) {
+    console.error("Error fetching photo:", error);
+    return null;
+  }
+
+  return photo as Photo;
+}
+
+export async function uploadPhoto(
+  groupId: string,
+  file: File,
+  caption?: string,
+  outingId?: string
+) {
+  const supabase = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  // Generate unique filename
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${groupId}/${user.id}/${Date.now()}.${fileExt}`;
+
+  // Upload to Supabase Storage
+  const { error: uploadError } = await supabase.storage
+    .from("photos")
+    .upload(fileName, file);
+
+  if (uploadError) {
+    console.error("Error uploading file:", uploadError);
+    return { error: uploadError.message };
+  }
+
+  // Get public URL
+  const { data: urlData } = supabase.storage
+    .from("photos")
+    .getPublicUrl(fileName);
+
+  const fileUrl = urlData.publicUrl;
+
+  // Insert photo record
+  const { data: photo, error: insertError } = await supabase
+    .from("photos")
+    .insert({
+      group_id: groupId,
+      outing_id: outingId || null,
+      uploaded_by: user.id,
+      file_url: fileUrl,
+      caption: caption?.trim() || null,
+    })
+    .select()
+    .single();
+
+  if (insertError) {
+    console.error("Error inserting photo:", insertError);
+    return { error: insertError.message };
+  }
+
+  revalidatePath(`/groups/${groupId}/photos`);
+  return { success: true, photo };
+}
+
+export async function uploadPhotos(
+  groupId: string,
+  formData: FormData
+) {
+  const supabase = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  const files = formData.getAll("files") as File[];
+  const caption = formData.get("caption") as string;
+  const outingId = formData.get("outingId") as string;
+
+  if (files.length === 0) {
+    return { error: "No files provided" };
+  }
+
+  const uploadedPhotos: { id: string; file_url: string }[] = [];
+  const errors: string[] = [];
+
+  for (const file of files) {
+    // Generate unique filename
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${groupId}/${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from("photos")
+      .upload(fileName, file);
+
+    if (uploadError) {
+      console.error("Error uploading file:", uploadError);
+      errors.push(`Failed to upload ${file.name}`);
+      continue;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from("photos")
+      .getPublicUrl(fileName);
+
+    const fileUrl = urlData.publicUrl;
+
+    // Insert photo record with original filename and size for duplicate detection
+    const { data: photo, error: insertError } = await supabase
+      .from("photos")
+      .insert({
+        group_id: groupId,
+        outing_id: outingId || null,
+        uploaded_by: user.id,
+        file_url: fileUrl,
+        caption: caption?.trim() || null,
+        original_filename: file.name,
+        file_size: file.size,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Error inserting photo:", insertError);
+      errors.push(`Failed to save ${file.name}`);
+      continue;
+    }
+
+    uploadedPhotos.push(photo);
+  }
+
+  // Create notifications for all group members
+  if (uploadedPhotos.length > 0) {
+    const { data: members } = await supabase
+      .from("group_members")
+      .select("user_id")
+      .eq("group_id", groupId)
+      .is("left_at", null)
+      .neq("user_id", user.id);
+
+    if (members && members.length > 0) {
+      const { data: profile } = await supabase
+        .from("users")
+        .select("display_name, full_name")
+        .eq("id", user.id)
+        .single();
+
+      const uploaderName = profile?.display_name || profile?.full_name || "Someone";
+      const photoCount = uploadedPhotos.length;
+      const message = photoCount === 1
+        ? `${uploaderName} added a photo`
+        : `${uploaderName} added ${photoCount} photos`;
+
+      const notifications = members.map((m: { user_id: string }) => ({
+        user_id: m.user_id,
+        type: "photos_added",
+        title: "New Photos",
+        message,
+        link: `/groups/${groupId}/photos`,
+        group_id: groupId,
+      }));
+
+      await supabase.from("notifications").insert(notifications);
+    }
+  }
+
+  revalidatePath(`/groups/${groupId}/photos`);
+
+  if (errors.length > 0) {
+    return {
+      success: true,
+      photos: uploadedPhotos,
+      warnings: errors,
+    };
+  }
+
+  return { success: true, photos: uploadedPhotos };
+}
+
+export async function toggleFavorite(photoId: string, groupId: string) {
+  const supabase = await createServerSupabaseClient();
+
+  // Get current favorite status
+  const { data: photo } = await supabase
+    .from("photos")
+    .select("is_favorite")
+    .eq("id", photoId)
+    .single();
+
+  if (!photo) {
+    return { error: "Photo not found" };
+  }
+
+  const { error } = await supabase
+    .from("photos")
+    .update({ is_favorite: !photo.is_favorite })
+    .eq("id", photoId);
+
+  if (error) {
+    console.error("Error toggling favorite:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath(`/groups/${groupId}/photos`);
+  return { success: true, is_favorite: !photo.is_favorite };
+}
+
+export async function updatePhotoCaption(
+  photoId: string,
+  caption: string,
+  groupId: string
+) {
+  const supabase = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  const { error } = await supabase
+    .from("photos")
+    .update({ caption: caption.trim() || null })
+    .eq("id", photoId)
+    .eq("uploaded_by", user.id);
+
+  if (error) {
+    console.error("Error updating caption:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath(`/groups/${groupId}/photos`);
+  return { success: true };
+}
+
+export async function updatePhoto(
+  photoId: string,
+  groupId: string,
+  updates: { caption?: string; outing_id?: string | null }
+) {
+  const supabase = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  const updateData: { caption?: string | null; outing_id?: string | null } = {};
+
+  if (updates.caption !== undefined) {
+    updateData.caption = updates.caption.trim() || null;
+  }
+
+  if (updates.outing_id !== undefined) {
+    updateData.outing_id = updates.outing_id || null;
+  }
+
+  const { data: photo, error } = await supabase
+    .from("photos")
+    .update(updateData)
+    .eq("id", photoId)
+    .eq("uploaded_by", user.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating photo:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath(`/groups/${groupId}/photos`);
+  return { success: true, photo };
+}
+
+export async function deletePhoto(photoId: string, groupId: string) {
+  const supabase = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  // Get photo to delete from storage
+  const { data: photo } = await supabase
+    .from("photos")
+    .select("file_url, uploaded_by")
+    .eq("id", photoId)
+    .single();
+
+  if (!photo) {
+    return { error: "Photo not found" };
+  }
+
+  if (photo.uploaded_by !== user.id) {
+    return { error: "You can only delete your own photos" };
+  }
+
+  // Extract file path from URL
+  const urlParts = photo.file_url.split("/photos/");
+  if (urlParts.length > 1) {
+    const filePath = urlParts[1];
+    await supabase.storage.from("photos").remove([filePath]);
+  }
+
+  // Delete photo record
+  const { error } = await supabase
+    .from("photos")
+    .delete()
+    .eq("id", photoId)
+    .eq("uploaded_by", user.id);
+
+  if (error) {
+    console.error("Error deleting photo:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath(`/groups/${groupId}/photos`);
+  return { success: true };
+}
+
+// ============ BATCH OPERATIONS ============
+
+export async function batchDeletePhotos(photoIds: string[], groupId: string) {
+  const supabase = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  if (photoIds.length === 0) {
+    return { error: "No photos selected" };
+  }
+
+  // Get photos to delete
+  const { data: photos } = await supabase
+    .from("photos")
+    .select("id, file_url, uploaded_by")
+    .in("id", photoIds)
+    .eq("uploaded_by", user.id);
+
+  if (!photos || photos.length === 0) {
+    return { error: "No photos found or you can only delete your own photos" };
+  }
+
+  // Delete from storage
+  const filePaths: string[] = [];
+  for (const photo of photos) {
+    const urlParts = photo.file_url.split("/photos/");
+    if (urlParts.length > 1) {
+      filePaths.push(urlParts[1]);
+    }
+  }
+
+  if (filePaths.length > 0) {
+    await supabase.storage.from("photos").remove(filePaths);
+  }
+
+  // Delete records
+  const { error } = await supabase
+    .from("photos")
+    .delete()
+    .in("id", photos.map(p => p.id));
+
+  if (error) {
+    console.error("Error batch deleting photos:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath(`/groups/${groupId}/photos`);
+  return { success: true, count: photos.length };
+}
+
+export async function batchUpdateOuting(
+  photoIds: string[],
+  groupId: string,
+  outingId: string | null
+) {
+  const supabase = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  if (photoIds.length === 0) {
+    return { error: "No photos selected" };
+  }
+
+  // Update only user's photos
+  const { data: updated, error } = await supabase
+    .from("photos")
+    .update({ outing_id: outingId || null })
+    .in("id", photoIds)
+    .eq("uploaded_by", user.id)
+    .select("id");
+
+  if (error) {
+    console.error("Error batch updating outing:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath(`/groups/${groupId}/photos`);
+  return { success: true, count: updated?.length || 0 };
+}
+
+export async function batchToggleFavorite(
+  photoIds: string[],
+  groupId: string,
+  setFavorite: boolean
+) {
+  const supabase = await createServerSupabaseClient();
+
+  if (photoIds.length === 0) {
+    return { error: "No photos selected" };
+  }
+
+  const { data: updated, error } = await supabase
+    .from("photos")
+    .update({ is_favorite: setFavorite })
+    .in("id", photoIds)
+    .select("id");
+
+  if (error) {
+    console.error("Error batch toggling favorite:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath(`/groups/${groupId}/photos`);
+  return { success: true, count: updated?.length || 0 };
+}

@@ -1,0 +1,340 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Bright & Vibrant Light Theme */
+  --background: #FAFBFF;
+  --background-secondary: #F0F4FF;
+  --background-card: #FFFFFF;
+
+  /* Text */
+  --foreground: #1E293B;
+  --foreground-muted: #64748B;
+  --foreground-subtle: #94A3B8;
+
+  /* Primary - Electric Cyan */
+  --primary: #00D4FF;
+  --primary-hover: #00B8E6;
+
+  /* Secondary - Neon Purple */
+  --secondary: #A855F7;
+  --secondary-hover: #9333EA;
+
+  /* Vibrant Accent Colors */
+  --accent-orange: #FF8C42;
+  --accent-gold: #FFD700;
+  --accent-green: #4ADE80;
+  --accent-pink: #EC4899;
+
+  /* Status */
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --error: #EF4444;
+
+  /* Borders - light and subtle */
+  --border: #E2E8F0;
+  --border-hover: #CBD5E1;
+
+  /* Safe areas for notch/home indicator */
+  --sat: env(safe-area-inset-top);
+  --sar: env(safe-area-inset-right);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-semibold text-slate-dark;
+  }
+
+  body {
+    @apply font-body text-slate-dark bg-bright-white;
+  }
+
+  /* Selection styling */
+  ::selection {
+    background: rgba(0, 212, 255, 0.2);
+    color: #1E293B;
+  }
+}
+
+@layer components {
+  /* Primary Button - Electric Cyan */
+  .btn-primary {
+    @apply bg-electric-cyan text-white px-6 py-3 rounded-xl font-medium
+           hover:bg-electric-cyan-600 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-electric-cyan focus:ring-offset-2
+           shadow-soft hover:shadow-medium active:scale-[0.98];
+  }
+
+  /* Secondary Button - Neon Purple */
+  .btn-secondary {
+    @apply bg-neon-purple text-white px-6 py-3 rounded-xl font-medium
+           hover:bg-neon-purple-600 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-neon-purple focus:ring-offset-2
+           shadow-soft hover:shadow-medium active:scale-[0.98];
+  }
+
+  /* Accent Button - Vibrant Orange */
+  .btn-accent {
+    @apply bg-vibrant-orange text-white px-6 py-3 rounded-xl font-medium
+           hover:bg-vibrant-orange-600 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-vibrant-orange focus:ring-offset-2
+           shadow-soft hover:shadow-medium active:scale-[0.98];
+  }
+
+  /* Outline Button */
+  .btn-outline {
+    @apply bg-transparent border-2 border-electric-cyan text-electric-cyan px-6 py-3 rounded-xl font-medium
+           hover:bg-electric-cyan-50 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-electric-cyan focus:ring-offset-2
+           active:scale-[0.98];
+  }
+
+  /* Ghost Button */
+  .btn-ghost {
+    @apply bg-transparent text-slate-medium px-6 py-3 rounded-xl font-medium
+           hover:bg-gray-100 hover:text-slate-dark transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2
+           active:scale-[0.98];
+  }
+
+  /* Card - Clean white with subtle shadow */
+  .card {
+    @apply bg-white rounded-xl p-6 border border-gray-200
+           shadow-card transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply card hover:shadow-card-hover hover:border-electric-cyan/30;
+  }
+
+  /* Input - Light theme */
+  .input {
+    @apply w-full px-4 py-3 rounded-xl border border-gray-200 bg-white
+           text-slate-dark placeholder:text-slate-light
+           focus:outline-none focus:ring-2 focus:ring-electric-cyan/30 focus:border-electric-cyan
+           transition-all duration-200;
+  }
+
+  /* Textarea */
+  .textarea {
+    @apply input resize-none;
+  }
+
+  /* Select */
+  .select {
+    @apply input appearance-none cursor-pointer bg-no-repeat pr-10;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748B' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-size: 1.5em 1.5em;
+    background-position: right 0.5rem center;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-slate-dark mb-2;
+  }
+
+  /* Badge styles - colorful and fun */
+  .badge {
+    @apply px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .badge-primary {
+    @apply badge bg-electric-cyan/10 text-electric-cyan-700;
+  }
+
+  .badge-secondary {
+    @apply badge bg-neon-purple/10 text-neon-purple-700;
+  }
+
+  .badge-success {
+    @apply badge bg-cosmic-green/10 text-cosmic-green-700;
+  }
+
+  .badge-warning {
+    @apply badge bg-golden-sun/20 text-golden-sun-700;
+  }
+
+  .badge-error {
+    @apply badge bg-red-100 text-red-700;
+  }
+
+  .badge-orange {
+    @apply badge bg-vibrant-orange/10 text-vibrant-orange-700;
+  }
+
+  .badge-pink {
+    @apply badge bg-hot-pink/10 text-hot-pink-700;
+  }
+
+  /* Better touch targets */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Link style */
+  .link {
+    @apply text-electric-cyan hover:text-electric-cyan-600 transition-colors underline-offset-2 hover:underline;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-neon-gradient;
+  }
+
+  /* Divider */
+  .divider {
+    @apply border-t border-gray-200;
+  }
+}
+
+/* ============================================
+   MOBILE / NATIVE APP STYLES
+   ============================================ */
+
+/* Padding utilities for safe areas */
+.pt-safe { padding-top: var(--sat); }
+.pr-safe { padding-right: var(--sar); }
+.pb-safe { padding-bottom: var(--sab); }
+.pl-safe { padding-left: var(--sal); }
+
+.mt-safe { margin-top: var(--sat); }
+.mr-safe { margin-right: var(--sar); }
+.mb-safe { margin-bottom: var(--sab); }
+.ml-safe { margin-left: var(--sal); }
+
+/* Disable pull-to-refresh on PWA/native */
+html {
+  overscroll-behavior: none;
+}
+
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Disable text selection on interactive elements */
+button, [role="button"], .no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Smooth scrolling with momentum */
+.scroll-container {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+/* Hide scrollbars on mobile */
+@media (max-width: 768px) {
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Custom scrollbar for light theme */
+@media (min-width: 769px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #F1F5F9;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+  }
+}
+
+/* Bottom nav spacing */
+.has-bottom-nav {
+  padding-bottom: calc(64px + var(--sab));
+}
+
+/* Prevent zoom on input focus (iOS) */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Native-like tap highlight */
+@media (hover: none) {
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: rgba(0, 212, 255, 0.1);
+  }
+}
+
+/* Prevent text selection during swipe */
+.swipe-container {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Full-height container for native feel */
+.native-container {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+/* iOS fix for 100vh */
+@supports (-webkit-touch-callout: none) {
+  .native-container {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Active state for touch feedback */
+@media (hover: none) {
+  .btn-primary:active {
+    @apply bg-electric-cyan-700 scale-[0.98];
+  }
+
+  .btn-secondary:active {
+    @apply bg-neon-purple-700 scale-[0.98];
+  }
+
+  .btn-accent:active {
+    @apply bg-vibrant-orange-700 scale-[0.98];
+  }
+
+  .card:active {
+    @apply scale-[0.99];
+  }
+}
+
+/* Pull-to-refresh indicator area */
+.pull-indicator {
+  padding-top: var(--sat);
+}
