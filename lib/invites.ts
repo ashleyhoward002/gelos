@@ -267,10 +267,10 @@ export async function getInviteByCode(code: string) {
 }
 
 // ============================================
-// USE INVITE (JOIN GROUP)
+// ACCEPT INVITE (JOIN GROUP)
 // ============================================
 
-export async function useInvite(code: string) {
+export async function acceptInvite(code: string) {
   const supabase = await createServerSupabaseClient();
 
   const {

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
-import { getOutings, createOuting, deleteOuting, Outing, OutingType } from "@/lib/outings";
+import { getOutings, createOuting, deleteOuting, Outing } from "@/lib/outings";
 import { createBringList } from "@/lib/bring-list";
 import Header from "@/components/Header";
 

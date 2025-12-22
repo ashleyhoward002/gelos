@@ -8,7 +8,6 @@ import {
   BringListCategory,
   getBringList,
   addCategory,
-  deleteCategory,
 } from "@/lib/bring-list";
 import { calculateListStats, DEFAULT_CATEGORIES } from "@/lib/bring-list-constants";
 import BringListItemComponent from "./bring-list-item";
@@ -40,7 +39,7 @@ export function BringListDisplay({
   const [showSuggestModal, setShowSuggestModal] = useState(false);
   const [editingItem, setEditingItem] = useState<BringListItem | null>(null);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
-  const [addingToCategory, setAddingToCategory] = useState<string | null>(null);
+  const [, setAddingToCategory] = useState<string | null>(null);
 
   // Collapsed categories
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { TripActivity, ActivityParticipant } from "@/lib/activities";
+import { TripActivity } from "@/lib/activities";
 import {
   getCategoryConfig,
   getStatusConfig,

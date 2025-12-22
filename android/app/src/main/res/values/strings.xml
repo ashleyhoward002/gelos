@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Gelos</string>
+    <string name="title_activity_main">Gelos</string>
+    <string name="package_name">com.gelos.app</string>
+    <string name="custom_url_scheme">com.gelos.app</string>
+</resources>

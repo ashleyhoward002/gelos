@@ -11,9 +11,7 @@ import {
   getGuests,
   createExpense,
   createGuest,
-  settleSplit,
   settleUp,
-  sendReminder,
   deleteExpense,
   Expense,
   Balance,
@@ -26,7 +24,7 @@ import {
   categoryLabels,
   splitTypeLabels,
 } from "@/lib/expense-constants";
-import { getOutingsForSelect, Outing } from "@/lib/outings";
+import { getOutingsForSelect } from "@/lib/outings";
 import Header from "@/components/Header";
 
 const categories: { value: ExpenseCategory | "all"; label: string; icon: string }[] = [
@@ -72,8 +70,8 @@ export default function ExpensesPage() {
 
   // Filters
   const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | "all">("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showSettled, setShowSettled] = useState<"all" | "settled" | "unsettled">("all");
+  const [searchQuery] = useState("");
+  const [showSettled] = useState<"all" | "settled" | "unsettled">("all");
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -150,11 +148,6 @@ export default function ExpensesPage() {
     }
 
     setLoading(false);
-  }
-
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    loadData();
   }
 
   function toggleSplitMember(id: string) {
@@ -332,7 +325,7 @@ export default function ExpensesPage() {
               </p>
             </div>
             <div className={`p-4 rounded-xl ${balance.you_are_owed > 0 ? "bg-green-50" : "bg-bright-white"}`}>
-              <p className="text-sm text-slate-medium mb-1">You're owed</p>
+              <p className="text-sm text-slate-medium mb-1">You&apos;re owed</p>
               <p className={`text-2xl font-bold ${balance.you_are_owed > 0 ? "text-green-600" : "text-slate-dark"}`}>
                 ${balance.you_are_owed.toFixed(2)}
               </p>

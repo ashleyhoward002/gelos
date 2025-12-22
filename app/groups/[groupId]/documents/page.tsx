@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import {
   getDocuments,
@@ -9,12 +9,13 @@ import {
   deleteDocument,
   updateDocument,
   getOutingsForDocuments,
+} from "@/lib/documents";
+import {
   GroupDocument,
   DocumentCategory,
   documentCategoryLabels,
-  formatFileSize,
-  getFileIcon,
-} from "@/lib/documents";
+} from "@/lib/document-constants";
+import { formatFileSize, getFileIcon } from "@/lib/utils";
 import Header from "@/components/Header";
 
 interface Outing {
@@ -24,7 +25,6 @@ interface Outing {
 
 export default function DocumentsPage() {
   const params = useParams();
-  const router = useRouter();
   const groupId = params.groupId as string;
 
   const [documents, setDocuments] = useState<GroupDocument[]>([]);

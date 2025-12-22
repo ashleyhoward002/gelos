@@ -1,20 +1,16 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TripItineraryItem,
   ItineraryItemType,
-  ItineraryItemStatus,
   ItineraryParticipantStatus,
-  TripAttendee,
 } from "@/lib/outings";
 import {
   ITINERARY_CATEGORIES,
-  ITINERARY_STATUSES,
   getCategoryConfig,
   getStatusConfig,
-  formatTime,
   formatTimeRange,
   formatItineraryDate,
   getDayNumber,
@@ -25,9 +21,6 @@ interface ItineraryBuilderProps {
   items: TripItineraryItem[];
   tripStartDate: string;
   tripEndDate: string;
-  attendees: TripAttendee[];
-  groupId: string;
-  outingId: string;
   currentUserId?: string;
   currency?: string;
   onAddItem: (date: string) => void;
@@ -42,9 +35,6 @@ export function ItineraryBuilder({
   items,
   tripStartDate,
   tripEndDate,
-  attendees,
-  groupId,
-  outingId,
   currentUserId,
   currency = "USD",
   onAddItem,
@@ -273,7 +263,6 @@ export function ItineraryBuilder({
                             <ItineraryItemCard
                               key={item.id}
                               item={item}
-                              index={index}
                               currency={currency}
                               currentUserId={currentUserId}
                               userParticipation={getUserParticipation(item)}
@@ -330,7 +319,6 @@ export function ItineraryBuilder({
 // Itinerary Item Card Component
 interface ItineraryItemCardProps {
   item: TripItineraryItem;
-  index: number;
   currency: string;
   currentUserId?: string;
   userParticipation: ItineraryParticipantStatus | null;
@@ -348,7 +336,6 @@ interface ItineraryItemCardProps {
 
 function ItineraryItemCard({
   item,
-  index,
   currency,
   currentUserId,
   userParticipation,

@@ -43,7 +43,6 @@ export default function CalendarPage() {
 
   const [showEventModal, setShowEventModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   const [newEventTitle, setNewEventTitle] = useState("");

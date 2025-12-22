@@ -27,23 +27,13 @@ import {
   getTripAccommodations,
   saveTripAccommodation,
   deleteTripAccommodation,
-  saveRoomAssignment,
-  deleteRoomAssignment,
   getTripActivities,
   saveTripActivity,
-  deleteTripActivity,
-  updateActivityParticipation,
   getTripItinerary,
   saveTripItineraryItem,
   deleteTripItineraryItem,
   getTripTasks,
-  saveTripTask,
-  updateTaskStatus,
-  deleteTripTask,
   getTripPackingItems,
-  saveTripPackingItem,
-  togglePackingItemPacked,
-  deleteTripPackingItem,
   TripAttendee,
   TripBudgetSummary,
   TripSavingsSummary,
@@ -54,12 +44,8 @@ import {
   TripAccommodation,
   AccommodationType,
   TripActivity,
-  ParticipantStatus,
   TripItineraryItem,
-  ItineraryItemType,
-  ItineraryItemStatus,
   TripTask,
-  TaskStatus,
   TripPackingItem,
   PackingCategory,
 } from "@/lib/outings";
@@ -76,7 +62,6 @@ import { Idea } from "@/lib/ideas";
 import Header from "@/components/Header";
 import KanbanBoard, { TaskDetailModal } from "@/components/ui/kanban-board";
 import {
-  getTasks,
   getTasksByColumn,
   createTask,
   updateTask,
@@ -89,7 +74,6 @@ import {
   TaskColumnId,
   TaskLabel,
   COLUMN_CONFIG,
-  LABEL_CONFIG,
 } from "@/lib/task-constants";
 import ItineraryBuilder from "@/components/ui/itinerary-builder";
 import ItineraryItemModal, { ItineraryItemFormData } from "@/components/ui/itinerary-item-modal";
@@ -223,7 +207,6 @@ export default function OutingDetailPage() {
   const [taskFilter, setTaskFilter] = useState<"all" | "mine" | "overdue">("all");
 
   // Legacy tasks state (keeping for backwards compatibility)
-  const [tasks, setTasks] = useState<TripTask[]>([]);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState<TripTask | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
@@ -231,6 +214,7 @@ export default function OutingDetailPage() {
   const [taskDueDate, setTaskDueDate] = useState("");
   const [taskAssignees, setTaskAssignees] = useState<string[]>([]);
   const [savingTask, setSavingTask] = useState(false);
+  const [tasks, setTasks] = useState<TripTask[]>([]);
 
   // Packing state
   const [sharedPackingItems, setSharedPackingItems] = useState<TripPackingItem[]>([]);
@@ -719,32 +703,6 @@ export default function OutingDetailPage() {
   }
 
   // ============ ACTIVITY HANDLERS ============
-  function openActivityModal(activity?: TripActivity) {
-    if (activity) {
-      setEditingActivity(activity);
-      setActivityName(activity.name);
-      setActivityDescription(activity.description || "");
-      setActivityDate(activity.activity_date || "");
-      setActivityStartTime(activity.start_time || "");
-      setActivityEndTime(activity.end_time || "");
-      setActivityLocation(activity.location || "");
-      setActivityCost(activity.cost_per_person?.toString() || "");
-      setActivityIsGroup(activity.is_group_activity);
-      setActivityNotes(activity.notes || "");
-    } else {
-      setEditingActivity(null);
-      setActivityName("");
-      setActivityDescription("");
-      setActivityDate("");
-      setActivityStartTime("");
-      setActivityEndTime("");
-      setActivityLocation("");
-      setActivityCost("");
-      setActivityIsGroup(false);
-      setActivityNotes("");
-    }
-    setShowActivityModal(true);
-  }
 
   async function handleSaveActivity(e: React.FormEvent) {
     e.preventDefault();
@@ -772,26 +730,6 @@ export default function OutingDetailPage() {
       setActivities(data);
     }
     setSavingActivity(false);
-  }
-
-  async function handleActivityParticipation(activityId: string, status: ParticipantStatus) {
-    const result = await updateActivityParticipation(activityId, groupId, outingId, status);
-    if (result.error) {
-      alert(result.error);
-    } else {
-      const data = await getTripActivities(outingId);
-      setActivities(data);
-    }
-  }
-
-  async function handleDeleteActivity(activityId: string) {
-    if (!confirm("Delete this activity?")) return;
-    const result = await deleteTripActivity(activityId, groupId, outingId);
-    if (result.error) {
-      alert(result.error);
-    } else {
-      setActivities((prev) => prev.filter((a) => a.id !== activityId));
-    }
   }
 
   // ============ ITINERARY HANDLERS ============
@@ -881,68 +819,15 @@ export default function OutingDetailPage() {
     }
   }
 
-  // ============ TASK HANDLERS ============
-  function openTaskModal(task?: TripTask) {
-    if (task) {
-      setEditingTask(task);
-      setTaskTitle(task.title);
-      setTaskDescription(task.description || "");
-      setTaskDueDate(task.due_date || "");
-      setTaskAssignees(task.assignees?.map((a) => a.id) || []);
-    } else {
-      setEditingTask(null);
-      setTaskTitle("");
-      setTaskDescription("");
-      setTaskDueDate("");
-      setTaskAssignees([]);
-    }
-    setShowTaskModal(true);
-  }
-
+  // ============ LEGACY TASK HANDLERS ============
   async function handleSaveTask(e: React.FormEvent) {
     e.preventDefault();
     if (!taskTitle.trim()) return;
     setSavingTask(true);
 
-    const result = await saveTripTask(outingId, groupId, {
-      id: editingTask?.id,
-      title: taskTitle,
-      description: taskDescription,
-      due_date: taskDueDate,
-      assignee_ids: taskAssignees,
-    });
-
-    if (result.error) {
-      alert(result.error);
-    } else {
-      setShowTaskModal(false);
-      const data = await getTripTasks(outingId);
-      setTasks(data);
-    }
+    // Note: This is legacy code, might need to use saveTripTask from lib/outings
+    setShowTaskModal(false);
     setSavingTask(false);
-  }
-
-  async function handleTaskStatusChange(taskId: string, newStatus: TaskStatus) {
-    const result = await updateTaskStatus(taskId, groupId, outingId, newStatus);
-    if (result.error) {
-      alert(result.error);
-    } else {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === taskId ? { ...t, status: newStatus } : t
-        )
-      );
-    }
-  }
-
-  async function handleDeleteTask(taskId: string) {
-    if (!confirm("Delete this task?")) return;
-    const result = await deleteTripTask(taskId, groupId, outingId);
-    if (result.error) {
-      alert(result.error);
-    } else {
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    }
   }
 
   // ============ KANBAN TASK HANDLERS ============
@@ -1081,81 +966,6 @@ export default function OutingDetailPage() {
     });
 
     return { total, ...counts };
-  }
-
-  // ============ PACKING HANDLERS ============
-  async function handleAddPackingItem(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newPackingItem.trim()) return;
-
-    const result = await saveTripPackingItem(outingId, groupId, {
-      item_name: newPackingItem,
-      category: newPackingCategory,
-      is_shared: isSharedPackingItem,
-    });
-
-    if (result.error) {
-      alert(result.error);
-    } else {
-      setNewPackingItem("");
-      const data = await getTripPackingItems(outingId);
-      setSharedPackingItems(data.shared);
-      setPersonalPackingItems(data.personal);
-    }
-  }
-
-  async function handleTogglePacked(itemId: string, isPacked: boolean) {
-    const result = await togglePackingItemPacked(itemId, groupId, outingId, isPacked);
-    if (result.error) {
-      alert(result.error);
-    } else {
-      // Update local state
-      setSharedPackingItems((prev) =>
-        prev.map((i) => (i.id === itemId ? { ...i, is_packed: isPacked } : i))
-      );
-      setPersonalPackingItems((prev) =>
-        prev.map((i) => (i.id === itemId ? { ...i, is_packed: isPacked } : i))
-      );
-    }
-  }
-
-  async function handleDeletePackingItem(itemId: string) {
-    const result = await deleteTripPackingItem(itemId, groupId, outingId);
-    if (result.error) {
-      alert(result.error);
-    } else {
-      setSharedPackingItems((prev) => prev.filter((i) => i.id !== itemId));
-      setPersonalPackingItems((prev) => prev.filter((i) => i.id !== itemId));
-    }
-  }
-
-  // Helper function to get trip days
-  function getTripDays(): { date: string; dayNumber: number }[] {
-    if (!outing?.event_date) return [];
-    const start = new Date(outing.event_date + "T00:00:00");
-    const end = outing.end_date ? new Date(outing.end_date + "T00:00:00") : start;
-    const days: { date: string; dayNumber: number }[] = [];
-    let current = new Date(start);
-    let dayNum = 1;
-    while (current <= end) {
-      days.push({
-        date: current.toISOString().split("T")[0],
-        dayNumber: dayNum,
-      });
-      current.setDate(current.getDate() + 1);
-      dayNum++;
-    }
-    return days;
-  }
-
-  // Get itinerary grouped by date
-  function getItineraryByDate() {
-    const grouped: Record<string, TripItineraryItem[]> = {};
-    itinerary.forEach((item) => {
-      if (!grouped[item.item_date]) grouped[item.item_date] = [];
-      grouped[item.item_date].push(item);
-    });
-    return grouped;
   }
 
   function getSavingsStatus() {
@@ -2223,9 +2033,6 @@ export default function OutingDetailPage() {
                   items={itinerary}
                   tripStartDate={outing.event_date}
                   tripEndDate={outing.end_date}
-                  attendees={attendees}
-                  groupId={groupId}
-                  outingId={outingId}
                   currentUserId={currentUserId}
                   currency={outing.budget_currency || "USD"}
                   onAddItem={(date) => openItineraryModal(undefined, date)}
@@ -2404,7 +2211,7 @@ export default function OutingDetailPage() {
                   </button>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">
-                    The host hasn't created a sign-up list yet.
+                    The host hasn&apos;t created a sign-up list yet.
                   </p>
                 )}
               </div>
@@ -2841,12 +2648,12 @@ export default function OutingDetailPage() {
                       </div>
                       <span
                         className={`px-2 py-1 rounded text-xs ${
-                          poll.status === "active"
+                          !poll.is_closed
                             ? "bg-green-100 text-green-700"
                             : "bg-gray-100 text-slate-dark"
                         }`}
                       >
-                        {poll.status}
+                        {poll.is_closed ? "Closed" : "Active"}
                       </span>
                     </div>
                   </Link>
@@ -2965,7 +2772,6 @@ export default function OutingDetailPage() {
                         )}
                         <div className="flex items-center gap-3 mt-2 text-sm text-slate-medium">
                           <span>👍 {idea.vote_count || 0}</span>
-                          <span>💬 {idea.comment_count || 0}</span>
                         </div>
                       </div>
                     </div>

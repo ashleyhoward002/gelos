@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app:*)",
+      "Bash(npx create-next-app@14 gelos_temp --ts --tailwind --eslint --app --no-src-dir --import-alias=\"@/*\" --use-npm)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(cat:*)",
+      "Bash(dir /s /b \"c:\\\\VS Code\\\\gelos\\\\app\\\\groups\")",
+      "Bash(npx cap init:*)",
+      "Bash(ipconfig:*)",
+      "Bash(findstr:*)",
+      "Bash(npx cap sync)",
+      "Bash(npx cap:*)",
+      "Bash(node scripts/generate-icons.js:*)",
+      "Bash(if exist \"public\\\\apple-touch-icon.png\" del \"public\\\\apple-touch-icon.png\")",
+      "Bash(find:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm run build:*)"
+    ]
+  }
+}

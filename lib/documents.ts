@@ -2,51 +2,7 @@
 
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
-
-export interface GroupDocument {
-  id: string;
-  group_id: string;
-  name: string;
-  file_url: string;
-  file_type: string;
-  file_size: number;
-  category: DocumentCategory;
-  description?: string | null;
-  outing_id?: string | null;
-  uploaded_by: string;
-  created_at: string;
-  uploader?: {
-    id: string;
-    display_name: string | null;
-    full_name: string | null;
-    avatar_url: string | null;
-  } | null;
-  outing?: {
-    id: string;
-    title: string;
-  } | null;
-}
-
-export type DocumentCategory =
-  | "itinerary"
-  | "ticket"
-  | "reservation"
-  | "receipt"
-  | "map"
-  | "guide"
-  | "contract"
-  | "other";
-
-export const documentCategoryLabels: Record<DocumentCategory, { label: string; icon: string }> = {
-  itinerary: { label: "Itinerary", icon: "📅" },
-  ticket: { label: "Ticket", icon: "🎫" },
-  reservation: { label: "Reservation", icon: "🏨" },
-  receipt: { label: "Receipt", icon: "🧾" },
-  map: { label: "Map", icon: "🗺️" },
-  guide: { label: "Guide", icon: "📖" },
-  contract: { label: "Contract", icon: "📝" },
-  other: { label: "Other", icon: "📄" },
-};
+import type { GroupDocument, DocumentCategory } from "@/lib/document-constants";
 
 export async function getDocuments(groupId: string): Promise<GroupDocument[]> {
   const supabase = await createServerSupabaseClient();
@@ -317,19 +273,4 @@ export async function getOutingsForDocuments(groupId: string) {
   }
 
   return outings || [];
-}
-
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-export function getFileIcon(fileType: string): string {
-  if (fileType.startsWith("image/")) return "🖼️";
-  if (fileType === "application/pdf") return "📕";
-  if (fileType.includes("word")) return "📘";
-  if (fileType.includes("excel") || fileType.includes("spreadsheet")) return "📗";
-  if (fileType === "text/plain") return "📄";
-  return "📎";
 }

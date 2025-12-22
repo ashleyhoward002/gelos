@@ -201,11 +201,6 @@ export default function IdeasPage() {
     setPlanning(false);
   }
 
-  // Separate ideas by status
-  const activeIdeas = ideas.filter((i) => i.status === "idea");
-  const plannedIdeas = ideas.filter((i) => i.status === "planned");
-  const completedIdeas = ideas.filter((i) => i.status === "completed");
-
   return (
     <div className="min-h-screen bg-bright-white">
       <Header
@@ -383,7 +378,7 @@ export default function IdeasPage() {
               {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-slate-dark mb-1">
-                  What's the idea? *
+                  What&apos;s the idea? *
                 </label>
                 <input
                   type="text"

@@ -8,8 +8,6 @@ import {
   ActivityStatus,
   ACTIVITY_CATEGORIES,
   ACTIVITY_STATUSES,
-  getCategoryConfig,
-  getStatusConfig,
 } from "@/lib/activity-constants";
 import ActivityCard from "./activity-card";
 import ActivityModal from "./activity-modal";

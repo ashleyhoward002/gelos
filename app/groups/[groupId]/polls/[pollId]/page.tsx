@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import {
   getPoll,
@@ -18,7 +18,6 @@ import Header from "@/components/Header";
 
 export default function PollDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const groupId = params.groupId as string;
   const pollId = params.pollId as string;
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import {
@@ -22,7 +22,6 @@ import { ParallaxPhotoGallery } from "@/components/ui/parallax-scroll";
 
 export default function PhotosPage() {
   const params = useParams();
-  const router = useRouter();
   const groupId = params.groupId as string;
   const fileInputRef = useRef<HTMLInputElement>(null);
 

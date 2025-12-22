@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { getInviteByCode, useInvite, checkMembership, GroupInvite } from "@/lib/invites";
+import { getInviteByCode, acceptInvite, checkMembership, GroupInvite } from "@/lib/invites";
 
 interface InvitePageProps {
   params: Promise<{ code: string }>;
@@ -67,7 +67,7 @@ export default function InvitePage({ params }: InvitePageProps) {
     startTransition(async () => {
       setState({ status: "joining" });
 
-      const result = await useInvite(resolvedParams.code);
+      const result = await acceptInvite(resolvedParams.code);
 
       if (result.error) {
         if (result.alreadyMember && result.groupId) {

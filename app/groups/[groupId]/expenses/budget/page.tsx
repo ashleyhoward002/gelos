@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
 import { getExpenses, Expense, getGroupMembers } from "@/lib/expenses";
 import { ExpenseCategory, categoryLabels } from "@/lib/expense-constants";
 import Header from "@/components/Header";
@@ -42,7 +41,6 @@ export default function BudgetCalculatorPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [totalBudget, setTotalBudget] = useState(2500);
   const [budgets, setBudgets] = useState<Record<ExpenseCategory, number>>(defaultBudgets);
   const [editingBudget, setEditingBudget] = useState<ExpenseCategory | null>(null);
   const [tempBudgetValue, setTempBudgetValue] = useState("");
