@@ -72,7 +72,7 @@ export async function getGroup(groupId: string) {
   }
 
   // Then get active members separately
-  // Use !left to force LEFT JOIN - otherwise members without a users record are excluded
+  // Default is LEFT JOIN - members without users record will have user: null
   const { data: members, error: membersError } = await supabase
     .from("group_members")
     .select(`
@@ -80,7 +80,7 @@ export async function getGroup(groupId: string) {
       user_id,
       role,
       joined_at,
-      user:users!left (
+      user:users (
         id,
         full_name,
         display_name,
@@ -95,11 +95,11 @@ export async function getGroup(groupId: string) {
   }
 
   // Map members, providing fallback for users not in public.users
-  // Note: !left returns user as an array, so we need to extract first element
+  // Supabase returns user as array when no FK constraint exists, handle both formats
+  type UserData = { id: string; full_name: string | null; display_name: string | null; avatar_url: string | null };
   const processedMembers = (members || []).map((member) => {
-    // Handle both array (from !left) and object formats
-    const userArray = member.user as Array<{ id: string; full_name: string | null; display_name: string | null; avatar_url: string | null }> | null;
-    const userData = Array.isArray(userArray) ? userArray[0] : null;
+    const rawUser = member.user as UserData | UserData[] | null;
+    const userData = Array.isArray(rawUser) ? rawUser[0] : rawUser;
 
     return {
       id: member.id,
@@ -153,7 +153,7 @@ export async function getGroupWithContacts(groupId: string) {
   }
 
   // Then get active members with contact info
-  // Use !left to force LEFT JOIN - otherwise members without a users record are excluded
+  // Default is LEFT JOIN - members without users record will have user: null
   const { data: members, error: membersError } = await supabase
     .from("group_members")
     .select(`
@@ -162,7 +162,7 @@ export async function getGroupWithContacts(groupId: string) {
       role,
       joined_at,
       left_at,
-      user:users!left (
+      user:users (
         id,
         full_name,
         display_name,
@@ -177,7 +177,9 @@ export async function getGroupWithContacts(groupId: string) {
         instagram_handle,
         show_instagram,
         snapchat_handle,
-        show_snapchat
+        show_snapchat,
+        birthday,
+        share_birthday
       )
     `)
     .eq("group_id", groupId)
@@ -190,7 +192,6 @@ export async function getGroupWithContacts(groupId: string) {
   }
 
   // Process members - filter contact info based on preferences
-  // Note: !left returns user as an array, so we need to extract first element
   interface MemberUserData {
     id: string;
     full_name: string | null;
@@ -207,15 +208,17 @@ export async function getGroupWithContacts(groupId: string) {
     show_instagram?: boolean;
     snapchat_handle?: string | null;
     show_snapchat?: boolean;
+    birthday?: string | null;
+    share_birthday?: boolean;
   }
 
   // Log for debugging
   console.log("Raw members from DB:", JSON.stringify(members, null, 2));
 
+  // Supabase returns user as array when no FK constraint exists, handle both formats
   const processedMembers = (members || []).map((member) => {
-    // Handle both array (from !left) and object formats
-    const userArray = member.user as MemberUserData[] | null;
-    const userData = Array.isArray(userArray) ? userArray[0] : null;
+    const rawUser = member.user as MemberUserData | MemberUserData[] | null;
+    const userData = Array.isArray(rawUser) ? rawUser[0] : rawUser;
 
     // Check if user data exists and has a valid id
     if (!userData?.id) {
@@ -236,6 +239,7 @@ export async function getGroupWithContacts(groupId: string) {
           email: null,
           instagram_handle: null,
           snapchat_handle: null,
+          birthday: null,
         }
       };
     }
@@ -258,6 +262,7 @@ export async function getGroupWithContacts(groupId: string) {
         email: userData.show_email ? userData.email : null,
         instagram_handle: userData.show_instagram ? userData.instagram_handle : null,
         snapchat_handle: userData.show_snapchat ? userData.snapchat_handle : null,
+        birthday: userData.share_birthday ? userData.birthday : null,
       },
     };
   });
