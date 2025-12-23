@@ -125,7 +125,9 @@ export async function getGroupWithContacts(groupId: string) {
 
   // Filter contact info based on user preferences
   if (group?.group_members) {
-    group.group_members = group.group_members.map((member: {
+    group.group_members = group.group_members
+      .filter((member: { user?: { id?: string } }) => member?.user?.id)
+      .map((member: {
       id: string;
       role: string;
       joined_at: string;
@@ -197,7 +199,8 @@ export async function getUserGroups() {
     return [];
   }
 
-  return groups;
+  // Filter out any null or invalid groups
+  return (groups || []).filter(g => g && g.id && g.name);
 }
 
 export async function updateGroup(groupId: string, formData: FormData) {

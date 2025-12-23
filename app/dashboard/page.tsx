@@ -55,7 +55,7 @@ export default async function DashboardPage() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {/* Existing Groups */}
-          {groups.map((group) => (
+          {groups.filter(g => g?.id && g?.name).map((group) => (
             <Link
               key={group.id}
               href={`/groups/${group.id}`}
