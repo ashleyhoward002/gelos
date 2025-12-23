@@ -251,6 +251,25 @@ export default function GroupSettingsPage() {
         <div className="mt-8">
           <ManageInvites groupId={groupId} />
         </div>
+
+        {/* Edit Profile Link */}
+        <div className="mt-8 p-6 bg-white rounded-2xl shadow-card border border-gray-200">
+          <h3 className="font-heading font-semibold text-lg text-slate-dark mb-2">
+            Your Profile
+          </h3>
+          <p className="text-sm text-slate-medium mb-4">
+            Update your name, contact info, and what you share with group members.
+          </p>
+          <Link
+            href="/profile"
+            className="inline-flex items-center gap-2 text-electric-cyan hover:text-electric-cyan-600 font-medium"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            Edit Profile
+          </Link>
+        </div>
       </main>
     </div>
   );

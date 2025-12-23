@@ -99,7 +99,10 @@ export async function getGroup(groupId: string) {
   type UserData = { id: string; full_name: string | null; display_name: string | null; avatar_url: string | null };
   const processedMembers = (members || []).map((member) => {
     const rawUser = member.user as UserData | UserData[] | null;
-    const userData = Array.isArray(rawUser) ? rawUser[0] : rawUser;
+    // Handle empty arrays (when RLS blocks the join) or null/undefined
+    const userData = Array.isArray(rawUser)
+      ? (rawUser.length > 0 ? rawUser[0] : null)
+      : rawUser;
 
     return {
       id: member.id,
@@ -141,18 +144,7 @@ export async function getGroupWithContacts(groupId: string) {
     return null;
   }
 
-  // DEBUG: Get ALL members first (including those with left_at set)
-  const { data: allMembers, error: allMembersError } = await supabase
-    .from("group_members")
-    .select("id, user_id, role, joined_at, left_at")
-    .eq("group_id", groupId);
-
-  console.log("DEBUG: All members in group (no left_at filter):", JSON.stringify(allMembers, null, 2));
-  if (allMembersError) {
-    console.error("DEBUG: Error fetching all members:", allMembersError);
-  }
-
-  // Then get active members with contact info
+  // Get active members with contact info
   // Default is LEFT JOIN - members without users record will have user: null
   const { data: members, error: membersError } = await supabase
     .from("group_members")
@@ -185,8 +177,6 @@ export async function getGroupWithContacts(groupId: string) {
     .eq("group_id", groupId)
     .is("left_at", null);
 
-  console.log("DEBUG: Active members (with left_at IS NULL filter):", JSON.stringify(members, null, 2));
-
   if (membersError) {
     console.error("Error fetching members:", membersError);
   }
@@ -212,18 +202,17 @@ export async function getGroupWithContacts(groupId: string) {
     share_birthday?: boolean;
   }
 
-  // Log for debugging
-  console.log("Raw members from DB:", JSON.stringify(members, null, 2));
-
   // Supabase returns user as array when no FK constraint exists, handle both formats
   const processedMembers = (members || []).map((member) => {
     const rawUser = member.user as MemberUserData | MemberUserData[] | null;
-    const userData = Array.isArray(rawUser) ? rawUser[0] : rawUser;
+    // Handle empty arrays (when RLS blocks the join) or null/undefined
+    const userData = Array.isArray(rawUser)
+      ? (rawUser.length > 0 ? rawUser[0] : null)
+      : rawUser;
 
     // Check if user data exists and has a valid id
     if (!userData?.id) {
-      // User not in public.users yet - return basic info
-      console.log("Member without user data:", member.user_id);
+      // User not in public.users yet or RLS blocked the join - return basic info
       return {
         id: member.id,
         user_id: member.user_id,
@@ -266,8 +255,6 @@ export async function getGroupWithContacts(groupId: string) {
       },
     };
   });
-
-  console.log("Processed members:", processedMembers.length);
 
   return {
     ...group,

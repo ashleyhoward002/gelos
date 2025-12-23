@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { getUserGroups } from "@/lib/groups";
 import Link from "next/link";
 import Header from "@/components/Header";
+import { WelcomeModalWrapper } from "@/components/ui/welcome-modal-wrapper";
 
 const groupTypeLabels: Record<string, string> = {
   social: "Social",
@@ -48,6 +49,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-bright-white">
       <Header />
+      <WelcomeModalWrapper userName={profile?.display_name || undefined} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
