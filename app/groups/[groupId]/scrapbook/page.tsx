@@ -9,7 +9,7 @@ import {
   getScrapbookPages,
   createScrapbookPage,
   deleteScrapbookPage,
-  ScrapbookPage,
+  type ScrapbookPage as ScrapbookPageType,
 } from "@/lib/scrapbook";
 
 // Background color options
@@ -28,7 +28,7 @@ export default function ScrapbookPage() {
   const params = useParams();
   const groupId = params.groupId as string;
 
-  const [pages, setPages] = useState<ScrapbookPage[]>([]);
+  const [pages, setPages] = useState<ScrapbookPageType[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
