@@ -127,6 +127,17 @@ export async function getGroupWithContacts(groupId: string) {
     return null;
   }
 
+  // DEBUG: Get ALL members first (including those with left_at set)
+  const { data: allMembers, error: allMembersError } = await supabase
+    .from("group_members")
+    .select("id, user_id, role, joined_at, left_at")
+    .eq("group_id", groupId);
+
+  console.log("DEBUG: All members in group (no left_at filter):", JSON.stringify(allMembers, null, 2));
+  if (allMembersError) {
+    console.error("DEBUG: Error fetching all members:", allMembersError);
+  }
+
   // Then get active members with contact info
   const { data: members, error: membersError } = await supabase
     .from("group_members")
@@ -135,6 +146,7 @@ export async function getGroupWithContacts(groupId: string) {
       user_id,
       role,
       joined_at,
+      left_at,
       user:users (
         id,
         full_name,
@@ -155,6 +167,8 @@ export async function getGroupWithContacts(groupId: string) {
     `)
     .eq("group_id", groupId)
     .is("left_at", null);
+
+  console.log("DEBUG: Active members (with left_at IS NULL filter):", JSON.stringify(members, null, 2));
 
   if (membersError) {
     console.error("Error fetching members:", membersError);
@@ -180,6 +194,9 @@ export async function getGroupWithContacts(groupId: string) {
     show_snapchat?: boolean;
   }
 
+  // Log for debugging
+  console.log("Raw members from DB:", JSON.stringify(members, null, 2));
+
   const processedMembers = (members || []).map((member: {
     id: string;
     user_id: string;
@@ -187,8 +204,12 @@ export async function getGroupWithContacts(groupId: string) {
     joined_at: string;
     user: MemberUser | null;
   }) => {
-    if (!member.user?.id) {
+    // Check if user data exists and has a valid id
+    const hasValidUser = member.user && typeof member.user === 'object' && member.user.id;
+
+    if (!hasValidUser) {
       // User not in public.users yet - return basic info
+      console.log("Member without user data:", member.user_id);
       return {
         ...member,
         user: {
@@ -210,8 +231,8 @@ export async function getGroupWithContacts(groupId: string) {
       ...member,
       user: {
         id: member.user.id,
-        full_name: member.user.full_name,
-        display_name: member.user.display_name,
+        full_name: member.user.full_name || "Unknown",
+        display_name: member.user.display_name || member.user.full_name || "Unknown",
         avatar_url: member.user.avatar_url,
         phone_number: member.user.show_phone ? member.user.phone_number : null,
         whatsapp_number: member.user.show_whatsapp
@@ -223,6 +244,8 @@ export async function getGroupWithContacts(groupId: string) {
       },
     };
   });
+
+  console.log("Processed members:", processedMembers.length);
 
   return {
     ...group,
