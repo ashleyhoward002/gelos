@@ -72,6 +72,7 @@ export async function getGroup(groupId: string) {
   }
 
   // Then get active members separately
+  // Use !left to force LEFT JOIN - otherwise members without a users record are excluded
   const { data: members, error: membersError } = await supabase
     .from("group_members")
     .select(`
@@ -79,7 +80,7 @@ export async function getGroup(groupId: string) {
       user_id,
       role,
       joined_at,
-      user:users (
+      user:users!left (
         id,
         full_name,
         display_name,
@@ -139,6 +140,7 @@ export async function getGroupWithContacts(groupId: string) {
   }
 
   // Then get active members with contact info
+  // Use !left to force LEFT JOIN - otherwise members without a users record are excluded
   const { data: members, error: membersError } = await supabase
     .from("group_members")
     .select(`
@@ -147,7 +149,7 @@ export async function getGroupWithContacts(groupId: string) {
       role,
       joined_at,
       left_at,
-      user:users (
+      user:users!left (
         id,
         full_name,
         display_name,
