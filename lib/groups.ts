@@ -78,8 +78,15 @@ export async function getGroup(groupId: string) {
     .eq("id", groupId)
     .single();
 
-  if (error) {
+  if (error || !group) {
     return null;
+  }
+
+  // Filter out members with null users (deleted users)
+  if (group.group_members) {
+    group.group_members = group.group_members.filter(
+      (member: { user?: { id?: string } | null }) => member?.user?.id
+    );
   }
 
   return group;

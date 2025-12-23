@@ -35,7 +35,15 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single();
 
-  const groups = await getUserGroups();
+  let groups: Awaited<ReturnType<typeof getUserGroups>> = [];
+  try {
+    groups = await getUserGroups();
+    // Extra safety: ensure groups is always an array with valid items
+    groups = Array.isArray(groups) ? groups.filter(g => g && g.id && g.name) : [];
+  } catch (error) {
+    console.error("Error loading groups:", error);
+    groups = [];
+  }
 
   return (
     <div className="min-h-screen bg-bright-white">
