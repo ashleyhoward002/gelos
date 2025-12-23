@@ -95,17 +95,30 @@ export async function getGroup(groupId: string) {
   }
 
   // Map members, providing fallback for users not in public.users
-  const processedMembers = (members || []).map(
-    (member: { user_id: string; user?: { id?: string; full_name?: string; display_name?: string; avatar_url?: string } | null; id: string; role: string; joined_at: string }) => ({
-      ...member,
-      user: member.user?.id ? member.user : {
+  // Note: !left returns user as an array, so we need to extract first element
+  const processedMembers = (members || []).map((member) => {
+    // Handle both array (from !left) and object formats
+    const userArray = member.user as Array<{ id: string; full_name: string | null; display_name: string | null; avatar_url: string | null }> | null;
+    const userData = Array.isArray(userArray) ? userArray[0] : null;
+
+    return {
+      id: member.id,
+      user_id: member.user_id,
+      role: member.role,
+      joined_at: member.joined_at,
+      user: userData?.id ? {
+        id: userData.id,
+        full_name: userData.full_name || null,
+        display_name: userData.display_name || null,
+        avatar_url: userData.avatar_url || null
+      } : {
         id: member.user_id,
         full_name: "New Member",
         display_name: "New Member",
         avatar_url: null
       }
-    })
-  );
+    };
+  });
 
   return {
     ...group,
@@ -177,8 +190,8 @@ export async function getGroupWithContacts(groupId: string) {
   }
 
   // Process members - filter contact info based on preferences
-  // Include members even if they don't have a user record yet
-  interface MemberUser {
+  // Note: !left returns user as an array, so we need to extract first element
+  interface MemberUserData {
     id: string;
     full_name: string | null;
     display_name: string | null;
@@ -199,21 +212,20 @@ export async function getGroupWithContacts(groupId: string) {
   // Log for debugging
   console.log("Raw members from DB:", JSON.stringify(members, null, 2));
 
-  const processedMembers = (members || []).map((member: {
-    id: string;
-    user_id: string;
-    role: string;
-    joined_at: string;
-    user: MemberUser | null;
-  }) => {
-    // Check if user data exists and has a valid id
-    const hasValidUser = member.user && typeof member.user === 'object' && member.user.id;
+  const processedMembers = (members || []).map((member) => {
+    // Handle both array (from !left) and object formats
+    const userArray = member.user as MemberUserData[] | null;
+    const userData = Array.isArray(userArray) ? userArray[0] : null;
 
-    if (!hasValidUser) {
+    // Check if user data exists and has a valid id
+    if (!userData?.id) {
       // User not in public.users yet - return basic info
       console.log("Member without user data:", member.user_id);
       return {
-        ...member,
+        id: member.id,
+        user_id: member.user_id,
+        role: member.role,
+        joined_at: member.joined_at,
         user: {
           id: member.user_id,
           full_name: "New Member",
@@ -230,19 +242,22 @@ export async function getGroupWithContacts(groupId: string) {
 
     // User exists - filter contact info based on preferences
     return {
-      ...member,
+      id: member.id,
+      user_id: member.user_id,
+      role: member.role,
+      joined_at: member.joined_at,
       user: {
-        id: member.user.id,
-        full_name: member.user.full_name || "Unknown",
-        display_name: member.user.display_name || member.user.full_name || "Unknown",
-        avatar_url: member.user.avatar_url,
-        phone_number: member.user.show_phone ? member.user.phone_number : null,
-        whatsapp_number: member.user.show_whatsapp
-          ? (member.user.whatsapp_same_as_phone ? member.user.phone_number : member.user.whatsapp_number)
+        id: userData.id,
+        full_name: userData.full_name || "Unknown",
+        display_name: userData.display_name || userData.full_name || "Unknown",
+        avatar_url: userData.avatar_url,
+        phone_number: userData.show_phone ? userData.phone_number : null,
+        whatsapp_number: userData.show_whatsapp
+          ? (userData.whatsapp_same_as_phone ? userData.phone_number : userData.whatsapp_number)
           : null,
-        email: member.user.show_email ? member.user.email : null,
-        instagram_handle: member.user.show_instagram ? member.user.instagram_handle : null,
-        snapchat_handle: member.user.show_snapchat ? member.user.snapchat_handle : null,
+        email: userData.show_email ? userData.email : null,
+        instagram_handle: userData.show_instagram ? userData.instagram_handle : null,
+        snapchat_handle: userData.show_snapchat ? userData.snapchat_handle : null,
       },
     };
   });
