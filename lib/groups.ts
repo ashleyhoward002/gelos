@@ -59,110 +59,160 @@ export async function createGroup(formData: FormData) {
 export async function getGroup(groupId: string) {
   const supabase = await createServerSupabaseClient();
 
-  const { data: group, error } = await supabase
+  // First get the group
+  const { data: group, error: groupError } = await supabase
     .from("groups")
-    .select(`
-      *,
-      group_members (
-        id,
-        role,
-        joined_at,
-        user:users (
-          id,
-          full_name,
-          display_name,
-          avatar_url
-        )
-      )
-    `)
+    .select("*")
     .eq("id", groupId)
     .single();
 
-  if (error || !group) {
+  if (groupError || !group) {
+    console.error("Error fetching group:", groupError);
     return null;
   }
 
-  // Filter out members with null users (deleted users)
-  if (group.group_members) {
-    group.group_members = group.group_members.filter(
-      (member: { user?: { id?: string } | null }) => member?.user?.id
-    );
+  // Then get active members separately
+  const { data: members, error: membersError } = await supabase
+    .from("group_members")
+    .select(`
+      id,
+      user_id,
+      role,
+      joined_at,
+      user:users (
+        id,
+        full_name,
+        display_name,
+        avatar_url
+      )
+    `)
+    .eq("group_id", groupId)
+    .is("left_at", null);
+
+  if (membersError) {
+    console.error("Error fetching members:", membersError);
   }
 
-  return group;
+  // Map members, providing fallback for users not in public.users
+  const processedMembers = (members || []).map(
+    (member: { user_id: string; user?: { id?: string; full_name?: string; display_name?: string; avatar_url?: string } | null; id: string; role: string; joined_at: string }) => ({
+      ...member,
+      user: member.user?.id ? member.user : {
+        id: member.user_id,
+        full_name: "New Member",
+        display_name: "New Member",
+        avatar_url: null
+      }
+    })
+  );
+
+  return {
+    ...group,
+    group_members: processedMembers
+  };
 }
 
 // Get group with member contact info (only shared contacts)
 export async function getGroupWithContacts(groupId: string) {
   const supabase = await createServerSupabaseClient();
 
-  const { data: group, error } = await supabase
+  // First get the group
+  const { data: group, error: groupError } = await supabase
     .from("groups")
-    .select(`
-      *,
-      group_members (
-        id,
-        role,
-        joined_at,
-        user:users (
-          id,
-          full_name,
-          display_name,
-          avatar_url,
-          phone_number,
-          show_phone,
-          whatsapp_number,
-          show_whatsapp,
-          whatsapp_same_as_phone,
-          email,
-          show_email,
-          instagram_handle,
-          show_instagram,
-          snapchat_handle,
-          show_snapchat
-        )
-      )
-    `)
+    .select("*")
     .eq("id", groupId)
     .single();
 
-  if (error) {
+  if (groupError || !group) {
     return null;
   }
 
-  // Filter contact info based on user preferences
-  if (group?.group_members) {
-    group.group_members = group.group_members
-      .filter((member: { user?: { id?: string } }) => member?.user?.id)
-      .map((member: {
-      id: string;
-      role: string;
-      joined_at: string;
-      user: {
-        id: string;
-        full_name: string;
-        display_name: string;
-        avatar_url: string;
-        phone_number: string;
-        show_phone: boolean;
-        whatsapp_number: string;
-        show_whatsapp: boolean;
-        whatsapp_same_as_phone: boolean;
-        email: string;
-        show_email: boolean;
-        instagram_handle: string;
-        show_instagram: boolean;
-        snapchat_handle: string;
-        show_snapchat: boolean;
+  // Then get active members with contact info
+  const { data: members, error: membersError } = await supabase
+    .from("group_members")
+    .select(`
+      id,
+      user_id,
+      role,
+      joined_at,
+      user:users (
+        id,
+        full_name,
+        display_name,
+        avatar_url,
+        phone_number,
+        show_phone,
+        whatsapp_number,
+        show_whatsapp,
+        whatsapp_same_as_phone,
+        email,
+        show_email,
+        instagram_handle,
+        show_instagram,
+        snapchat_handle,
+        show_snapchat
+      )
+    `)
+    .eq("group_id", groupId)
+    .is("left_at", null);
+
+  if (membersError) {
+    console.error("Error fetching members:", membersError);
+  }
+
+  // Process members - filter contact info based on preferences
+  // Include members even if they don't have a user record yet
+  interface MemberUser {
+    id: string;
+    full_name: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+    phone_number?: string | null;
+    show_phone?: boolean;
+    whatsapp_number?: string | null;
+    show_whatsapp?: boolean;
+    whatsapp_same_as_phone?: boolean;
+    email?: string | null;
+    show_email?: boolean;
+    instagram_handle?: string | null;
+    show_instagram?: boolean;
+    snapchat_handle?: string | null;
+    show_snapchat?: boolean;
+  }
+
+  const processedMembers = (members || []).map((member: {
+    id: string;
+    user_id: string;
+    role: string;
+    joined_at: string;
+    user: MemberUser | null;
+  }) => {
+    if (!member.user?.id) {
+      // User not in public.users yet - return basic info
+      return {
+        ...member,
+        user: {
+          id: member.user_id,
+          full_name: "New Member",
+          display_name: "New Member",
+          avatar_url: null,
+          phone_number: null,
+          whatsapp_number: null,
+          email: null,
+          instagram_handle: null,
+          snapchat_handle: null,
+        }
       };
-    }) => ({
+    }
+
+    // User exists - filter contact info based on preferences
+    return {
       ...member,
       user: {
         id: member.user.id,
         full_name: member.user.full_name,
         display_name: member.user.display_name,
         avatar_url: member.user.avatar_url,
-        // Only include contact info if user chose to share it
         phone_number: member.user.show_phone ? member.user.phone_number : null,
         whatsapp_number: member.user.show_whatsapp
           ? (member.user.whatsapp_same_as_phone ? member.user.phone_number : member.user.whatsapp_number)
@@ -171,10 +221,13 @@ export async function getGroupWithContacts(groupId: string) {
         instagram_handle: member.user.show_instagram ? member.user.instagram_handle : null,
         snapchat_handle: member.user.show_snapchat ? member.user.snapchat_handle : null,
       },
-    }));
-  }
+    };
+  });
 
-  return group;
+  return {
+    ...group,
+    group_members: processedMembers
+  };
 }
 
 export async function getUserGroups() {
