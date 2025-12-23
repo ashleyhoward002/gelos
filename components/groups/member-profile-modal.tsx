@@ -32,7 +32,9 @@ interface MemberProfileModalProps {
 function formatBirthday(dateString: string | null | undefined): string | null {
   if (!dateString) return null;
   try {
-    const date = new Date(dateString);
+    // Parse as local date to avoid timezone shift (dates stored as YYYY-MM-DD)
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return date.toLocaleDateString("en-US", { month: "long", day: "numeric" });
   } catch {
     return null;
@@ -159,8 +161,8 @@ export function MemberProfileModal({ member, isOpen, onClose }: MemberProfileMod
               {/* Contact buttons */}
               {hasContact && (
                 <div className="pt-4 border-t border-gray-100">
-                  <h3 className="text-sm font-medium text-slate-medium mb-3">Contact</h3>
-                  <ContactButtons contact={contact} size="md" showLabels className="justify-center" />
+                  <h3 className="text-sm font-medium text-slate-medium mb-3 text-center">Contact</h3>
+                  <ContactButtons contact={contact} size="md" showLabels className="w-full justify-center" />
                 </div>
               )}
 

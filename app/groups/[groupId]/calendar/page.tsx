@@ -136,8 +136,9 @@ export default function CalendarPage() {
 
     const dayEvents = events.filter((e) => e.event_date === dateStr);
     const dayBirthdays = birthdays.filter((b) => {
-      const bday = new Date(b.date + "T00:00:00");
-      return bday.getDate() === day;
+      // Parse date without timezone conversion (YYYY-MM-DD format)
+      const [, bdayMonth, bdayDay] = b.date.split('-').map(Number);
+      return bdayMonth === month + 1 && bdayDay === day;
     });
 
     return { events: dayEvents, birthdays: dayBirthdays };

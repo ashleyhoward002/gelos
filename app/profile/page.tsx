@@ -543,10 +543,13 @@ export default function ProfilePage() {
                     <p className="font-medium text-slate-dark">{member.name}</p>
                     <p className="text-sm text-slate-medium">
                       {member.relationship} &bull;{" "}
-                      {new Date(member.birthday + "T00:00:00").toLocaleDateString("en-US", {
-                        month: "long",
-                        day: "numeric",
-                      })}
+                      {(() => {
+                        const [year, month, day] = member.birthday.split('-').map(Number);
+                        return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+                          month: "long",
+                          day: "numeric",
+                        });
+                      })()}
                     </p>
                   </div>
                   <button
