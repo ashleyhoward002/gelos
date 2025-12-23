@@ -333,6 +333,7 @@ export async function getSubjects(groupId: string): Promise<string[]> {
   }
 
   // Get unique subjects
-  const subjects = [...new Set(resources?.map((r) => r.subject).filter(Boolean))] as string[];
+  const subjectSet = new Set(resources?.map((r) => r.subject).filter(Boolean));
+  const subjects = Array.from(subjectSet) as string[];
   return subjects.sort();
 }
