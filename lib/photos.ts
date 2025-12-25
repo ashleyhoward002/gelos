@@ -79,6 +79,16 @@ export async function getPhotos(
 ) {
   const supabase = await createServerSupabaseClient();
 
+  // Debug: Check if user is authenticated
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  console.log("getPhotos - Auth check:", {
+    userId: user?.id || "NOT AUTHENTICATED",
+    authError: authError?.message || null,
+    groupId,
+    filter
+  });
+
+  // Build query without caching
   let query = supabase
     .from("photos")
     .select("*")
@@ -96,7 +106,14 @@ export async function getPhotos(
 
   if (error) {
     console.error("Error fetching photos:", error);
+    console.error("Query details - groupId:", groupId, "filter:", filter);
+    console.error("Full error object:", JSON.stringify(error, null, 2));
     return [];
+  }
+
+  console.log("Photos fetched:", photos?.length || 0, "for group:", groupId);
+  if (photos?.length === 0) {
+    console.log("No photos returned - checking if RLS issue. User ID:", user?.id);
   }
 
   // Fetch uploader info separately

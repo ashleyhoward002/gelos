@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import {
-  getPhotos,
   uploadPhotos,
   toggleFavorite,
   deletePhoto,
@@ -111,12 +110,54 @@ export default function PhotosPage() {
       setCurrentUserId(user.id);
     }
 
-    const [photosData, outingsData] = await Promise.all([
-      getPhotos(groupId, filter),
-      getOutingsForSelect(groupId),
-    ]);
+    // Fetch photos directly using browser client to ensure proper auth context
+    let query = supabase
+      .from("photos")
+      .select("*")
+      .eq("group_id", groupId)
+      .order("created_at", { ascending: false });
 
-    setPhotos(photosData);
+    if (filter === "favorites") {
+      query = query.eq("is_favorite", true);
+    } else if (filter && filter !== "all") {
+      query = query.eq("outing_id", filter);
+    }
+
+    const { data: photosData, error: photosError } = await query;
+
+    if (photosError) {
+      console.error("Error fetching photos:", photosError);
+    }
+
+    // Fetch uploader info for each photo
+    const photosWithDetails: Photo[] = [];
+    for (const photo of (photosData || [])) {
+      const { data: uploader } = await supabase
+        .from("users")
+        .select("id, display_name, full_name, avatar_url")
+        .eq("id", photo.uploaded_by)
+        .single();
+
+      let outing = null;
+      if (photo.outing_id) {
+        const { data: outingData } = await supabase
+          .from("outings")
+          .select("id, title")
+          .eq("id", photo.outing_id)
+          .single();
+        outing = outingData;
+      }
+
+      photosWithDetails.push({
+        ...photo,
+        uploader,
+        outing,
+      });
+    }
+
+    const outingsData = await getOutingsForSelect(groupId);
+
+    setPhotos(photosWithDetails);
     setOutings(outingsData);
     setLoading(false);
   }
