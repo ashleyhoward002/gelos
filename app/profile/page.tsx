@@ -11,6 +11,7 @@ import {
 } from "@/lib/profile";
 import { createClient } from "@/lib/supabase";
 import { Logo } from "@/components/ui/logo";
+import { InstallAppModal } from "@/components/ui/install-app-modal";
 
 interface FamilyMember {
   id: string;
@@ -48,6 +49,8 @@ export default function ProfilePage() {
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberRelationship, setNewMemberRelationship] = useState("");
   const [newMemberBirthday, setNewMemberBirthday] = useState("");
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -92,6 +95,14 @@ export default function ProfilePage() {
     }
 
     loadProfile();
+  }, []);
+
+  // Check if already running as PWA
+  useEffect(() => {
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    setIsStandalone(standalone);
   }, []);
 
   async function handleSaveProfile(e: React.FormEvent) {
@@ -566,7 +577,38 @@ export default function ProfilePage() {
             </ul>
           )}
         </div>
+
+        {/* Install App Section - only show if not already installed */}
+        {!isStandalone && (
+          <div className="bg-white rounded-2xl shadow-card p-6 border border-gray-200 mt-8">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-electric-cyan/10 rounded-xl flex items-center justify-center">
+                <span className="text-2xl">📱</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-heading font-semibold text-lg text-slate-dark">Install App</h3>
+                <p className="text-sm text-slate-medium">
+                  Add Gelos to your home screen for quick access
+                </p>
+              </div>
+              <button
+                onClick={() => setShowInstallModal(true)}
+                className="btn-outline"
+              >
+                Install
+              </button>
+            </div>
+          </div>
+        )}
       </main>
+
+      {/* Install App Modal */}
+      {showInstallModal && (
+        <InstallAppModal
+          forceShow={true}
+          onClose={() => setShowInstallModal(false)}
+        />
+      )}
     </div>
   );
 }
