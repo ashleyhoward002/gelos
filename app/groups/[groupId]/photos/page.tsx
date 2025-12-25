@@ -103,9 +103,14 @@ export default function PhotosPage() {
     setLoading(true);
     const supabase = createClient();
 
+    console.log("🔍 Loading photos for group:", groupId);
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    console.log("👤 Current user:", user?.id);
+
     if (user) {
       setCurrentUserId(user.id);
     }
@@ -124,6 +129,8 @@ export default function PhotosPage() {
     }
 
     const { data: photosData, error: photosError } = await query;
+
+    console.log("📸 Photos result:", { photosData, photosError, count: photosData?.length });
 
     if (photosError) {
       console.error("Error fetching photos:", photosError);
