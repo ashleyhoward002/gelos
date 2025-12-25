@@ -67,9 +67,9 @@ export default function ResetPasswordPage() {
   // Show loading state while checking session
   if (isValidSession === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-b from-soft-lavender to-bright-white">
+      <div className="min-h-screen flex items-center justify-center px-4 bg-aurora">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-electric-cyan mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500 mx-auto"></div>
           <p className="text-slate-medium mt-4">Loading...</p>
         </div>
       </div>
@@ -79,7 +79,7 @@ export default function ResetPasswordPage() {
   // Show error if no valid session
   if (!isValidSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-b from-soft-lavender to-bright-white">
+      <div className="min-h-screen flex items-center justify-center px-4 bg-aurora">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-2">
@@ -120,7 +120,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-b from-soft-lavender to-bright-white">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-aurora">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-2">

@@ -126,7 +126,7 @@ function LoginFallback() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-b from-soft-lavender to-bright-white">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-aurora">
       <Suspense fallback={<LoginFallback />}>
         <LoginForm />
       </Suspense>

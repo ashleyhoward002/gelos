@@ -147,6 +147,12 @@ const config: Config = {
         'neon-gradient': 'linear-gradient(135deg, #00D4FF 0%, #A855F7 100%)',
         'warm-gradient': 'linear-gradient(135deg, #FF8C42 0%, #FFD700 100%)',
         'fun-gradient': 'linear-gradient(135deg, #F0F4FF 0%, #FAFBFF 100%)',
+        // Aurora gradient - soft teal to lavender
+        'aurora-gradient': 'linear-gradient(135deg, #67E8F9 0%, #A5F3FC 25%, #DDD6FE 75%, #C4B5FD 100%)',
+        'aurora-gradient-soft': 'linear-gradient(135deg, rgba(103, 232, 249, 0.3) 0%, rgba(165, 243, 252, 0.3) 25%, rgba(221, 214, 254, 0.3) 75%, rgba(196, 181, 253, 0.3) 100%)',
+        // Purple button gradient
+        'purple-gradient': 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
+        'purple-gradient-hover': 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)',
       },
     },
   },

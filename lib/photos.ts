@@ -233,7 +233,11 @@ export async function uploadPhotos(
 
   const files = formData.getAll("files") as File[];
   const caption = formData.get("caption") as string;
-  const outingId = formData.get("outingId") as string;
+  const outingIdValue = formData.get("outingId");
+  // Properly extract outingId - ensure it's a valid non-empty string or null
+  const outingId = typeof outingIdValue === "string" && outingIdValue.trim() !== ""
+    ? outingIdValue.trim()
+    : null;
 
   if (files.length === 0) {
     return { error: "No files provided" };
@@ -270,7 +274,7 @@ export async function uploadPhotos(
       .from("photos")
       .insert({
         group_id: groupId,
-        outing_id: outingId || null,
+        outing_id: outingId,
         uploaded_by: user.id,
         file_url: fileUrl,
         caption: caption?.trim() || null,

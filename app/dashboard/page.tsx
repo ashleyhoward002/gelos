@@ -48,7 +48,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bright-white">
+    <div className="min-h-screen bg-dashboard">
       <Header />
       <WelcomeModalWrapper userName={profile?.display_name || undefined} />
       <InstallAppModalWrapper />

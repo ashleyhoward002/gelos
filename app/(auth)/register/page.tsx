@@ -190,7 +190,7 @@ function RegisterFallback() {
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-b from-soft-lavender to-bright-white">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-aurora">
       <Suspense fallback={<RegisterFallback />}>
         <RegisterForm />
       </Suspense>

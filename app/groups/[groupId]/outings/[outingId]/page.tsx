@@ -103,8 +103,9 @@ interface CalendarEvent {
 export default function OutingDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const groupId = params.groupId as string;
-  const outingId = params.outingId as string;
+  // Ensure params are extracted as strings (handle potential array from catch-all routes)
+  const groupId = Array.isArray(params.groupId) ? params.groupId[0] : (params.groupId as string);
+  const outingId = Array.isArray(params.outingId) ? params.outingId[0] : (params.outingId as string);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [outing, setOuting] = useState<Outing | null>(null);
@@ -1027,6 +1028,12 @@ export default function OutingDetailPage() {
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (selectedFiles.length === 0) return;
+
+    // Validate outingId before upload
+    if (!outingId || typeof outingId !== "string") {
+      alert("Invalid outing. Please refresh the page and try again.");
+      return;
+    }
 
     setUploading(true);
 

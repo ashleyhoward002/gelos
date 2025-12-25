@@ -65,8 +65,16 @@ body {
 }
 
 @layer components {
-  /* Primary Button - Electric Cyan */
+  /* Primary Button - Purple Gradient */
   .btn-primary {
+    @apply bg-purple-gradient text-white px-6 py-3 rounded-xl font-medium
+           hover:bg-purple-gradient-hover transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2
+           shadow-soft hover:shadow-medium active:scale-[0.98];
+  }
+
+  /* Cyan Button - Electric Cyan */
+  .btn-cyan {
     @apply bg-electric-cyan text-white px-6 py-3 rounded-xl font-medium
            hover:bg-electric-cyan-600 transition-all duration-200
            focus:outline-none focus:ring-2 focus:ring-electric-cyan focus:ring-offset-2
@@ -198,6 +206,20 @@ body {
   .divider {
     @apply border-t border-gray-200;
   }
+
+  /* Aurora gradient backgrounds */
+  .bg-aurora {
+    @apply bg-aurora-gradient;
+  }
+
+  .bg-aurora-soft {
+    @apply bg-aurora-gradient-soft;
+  }
+
+  /* Soft dashboard gradient - subtle color wash */
+  .bg-dashboard {
+    background: linear-gradient(180deg, rgba(103, 232, 249, 0.08) 0%, rgba(221, 214, 254, 0.08) 50%, #FAFBFF 100%);
+  }
 }
 
 /* ============================================
@@ -318,6 +340,11 @@ button, [role="button"], .no-select {
 /* Active state for touch feedback */
 @media (hover: none) {
   .btn-primary:active {
+    background: linear-gradient(135deg, #6D28D9 0%, #4338CA 100%);
+    @apply scale-[0.98];
+  }
+
+  .btn-cyan:active {
     @apply bg-electric-cyan-700 scale-[0.98];
   }
 
