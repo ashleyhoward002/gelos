@@ -312,26 +312,125 @@ export default function PhotosPage() {
     setSaving(false);
   }
 
+  // Image compression for mobile uploads
+  async function compressImage(file: File): Promise<File> {
+    // Skip compression for small files or non-images
+    if (file.size < 500 * 1024 || !file.type.startsWith('image/')) {
+      return file;
+    }
+
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        console.warn(`Compression timeout for ${file.name}, using original`);
+        resolve(file);
+      }, 30000);
+
+      try {
+        const reader = new FileReader();
+        reader.onerror = () => {
+          clearTimeout(timeout);
+          resolve(file);
+        };
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onerror = () => {
+            clearTimeout(timeout);
+            resolve(file);
+          };
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
+
+              // Resize if larger than 1600px
+              const maxSize = 1600;
+              if (width > maxSize || height > maxSize) {
+                if (width > height) {
+                  height = (height / width) * maxSize;
+                  width = maxSize;
+                } else {
+                  width = (width / height) * maxSize;
+                  height = maxSize;
+                }
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) {
+                clearTimeout(timeout);
+                resolve(file);
+                return;
+              }
+
+              ctx.drawImage(img, 0, 0, width, height);
+              canvas.toBlob(
+                (blob) => {
+                  clearTimeout(timeout);
+                  if (blob && blob.size < file.size) {
+                    const compressedFile = new File([blob], file.name, {
+                      type: 'image/jpeg',
+                      lastModified: Date.now(),
+                    });
+                    console.log(`Compressed ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(blob.size/1024).toFixed(0)}KB`);
+                    resolve(compressedFile);
+                  } else {
+                    resolve(file);
+                  }
+                },
+                'image/jpeg',
+                0.80
+              );
+            } catch {
+              clearTimeout(timeout);
+              resolve(file);
+            }
+          };
+          img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      } catch {
+        clearTimeout(timeout);
+        resolve(file);
+      }
+    });
+  }
+
   // Upload functions
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (selectedFiles.length === 0) return;
 
     setUploading(true);
-    const formData = new FormData();
-    selectedFiles.forEach((file) => formData.append("files", file));
-    if (caption) formData.append("caption", caption);
-    if (selectedOuting) formData.append("outingId", selectedOuting);
 
-    const result = await uploadPhotos(groupId, formData);
-    if (result.error) {
-      alert(result.error);
-    } else {
-      setShowUploadModal(false);
-      setSelectedFiles([]);
-      setCaption("");
-      setSelectedOuting("");
-      loadData();
+    try {
+      // Compress images before upload
+      const compressedFiles: File[] = [];
+      for (const file of selectedFiles) {
+        const compressed = await compressImage(file);
+        compressedFiles.push(compressed);
+      }
+
+      const formData = new FormData();
+      compressedFiles.forEach((file) => formData.append("files", file));
+      if (caption) formData.append("caption", caption);
+      if (selectedOuting) formData.append("outingId", selectedOuting);
+
+      const result = await uploadPhotos(groupId, formData);
+      if (result.error) {
+        setToast({ message: result.error, type: "error" });
+      } else {
+        setShowUploadModal(false);
+        setSelectedFiles([]);
+        setCaption("");
+        setSelectedOuting("");
+        const count = result.photos?.length || 0;
+        setToast({ message: `${count} photo${count !== 1 ? 's' : ''} uploaded!`, type: "success" });
+        loadData();
+      }
+    } catch (err: any) {
+      setToast({ message: err.message || "Upload failed", type: "error" });
     }
     setUploading(false);
   }
@@ -1206,7 +1305,7 @@ function PhotoCard({
           src={photo.file_url}
           alt={photo.caption || ""}
           loading="lazy"
-          className={`w-full object-cover transition-transform group-hover:scale-105 ${
+          className={`w-full object-cover transition-transform group-hover:scale-105 max-h-96 ${
             isSelected ? "opacity-80" : ""
           }`}
         />

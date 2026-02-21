@@ -40,9 +40,20 @@ export default function PollDetailPage() {
   const [newOptionDate, setNewOptionDate] = useState("");
   const [addingOption, setAddingOption] = useState(false);
 
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
   useEffect(() => {
     loadData();
   }, [pollId]);
+
+  // Toast auto-hide
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   async function loadData() {
     setLoading(true);
@@ -105,22 +116,34 @@ export default function PollDetailPage() {
   async function handleAddOption() {
     if (!poll) return;
     const text = poll.poll_type === "date_picker" ? newOptionDate : newOptionText;
-    if (!text.trim()) return;
+    if (!text.trim()) {
+      setToast({ message: "Please enter an option", type: "error" });
+      return;
+    }
 
     setAddingOption(true);
 
-    const result = await addPollOption(pollId, groupId, {
-      text: text.trim(),
-      date: poll.poll_type === "date_picker" ? newOptionDate : undefined,
-    });
+    try {
+      console.log("Adding poll option:", { pollId, groupId, text: text.trim() });
+      const result = await addPollOption(pollId, groupId, {
+        text: text.trim(),
+        date: poll.poll_type === "date_picker" ? newOptionDate : undefined,
+      });
 
-    if (result.error) {
-      alert(result.error);
-    } else {
-      setNewOptionText("");
-      setNewOptionDate("");
-      setShowAddOption(false);
-      loadData();
+      console.log("Add option result:", result);
+
+      if (result.error) {
+        setToast({ message: result.error, type: "error" });
+      } else {
+        setNewOptionText("");
+        setNewOptionDate("");
+        setShowAddOption(false);
+        setToast({ message: "Option added!", type: "success" });
+        loadData();
+      }
+    } catch (err: any) {
+      console.error("Error adding option:", err);
+      setToast({ message: err.message || "Failed to add option", type: "error" });
     }
 
     setAddingOption(false);
@@ -516,6 +539,17 @@ export default function PollDetailPage() {
           </div>
         )}
       </main>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed bottom-4 left-4 right-4 max-w-md mx-auto p-4 rounded-xl shadow-lg z-50 ${
+            toast.type === "success" ? "bg-green-500" : "bg-red-500"
+          } text-white font-medium text-center`}
+        >
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }
