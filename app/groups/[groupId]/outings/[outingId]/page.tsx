@@ -89,6 +89,15 @@ import {
   duplicateItineraryItem,
   ItineraryParticipantStatus,
 } from "@/lib/outings";
+import {
+  getOutingRsvps,
+  getUserRsvp,
+  setRsvp,
+  deleteRsvp,
+  getRsvpCounts,
+  OutingRsvp,
+  RsvpStatus,
+} from "@/lib/rsvps";
 
 type TabType = "overview" | "travel" | "accommodations" | "activities" | "itinerary" | "tasks" | "packing" | "bring" | "savings" | "budget" | "polls" | "photos" | "ideas";
 
@@ -229,6 +238,11 @@ export default function OutingDetailPage() {
   const [bringListLoading, setBringListLoading] = useState(true);
   const [showCreateBringList, setShowCreateBringList] = useState(false);
 
+  // RSVP state
+  const [rsvps, setRsvps] = useState<OutingRsvp[]>([]);
+  const [userRsvp, setUserRsvp] = useState<OutingRsvp | null>(null);
+  const [updatingRsvp, setUpdatingRsvp] = useState(false);
+
   // Cover image state
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -247,6 +261,7 @@ export default function OutingDetailPage() {
   // Upload form state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [caption, setCaption] = useState("");
+  const [uploadProgress, setUploadProgress] = useState<string>("");
 
   const isTrip = outing?.outing_type === "trip";
 
@@ -348,6 +363,15 @@ export default function OutingDetailPage() {
       setBringList(bringListData);
       setBringListLoading(false);
 
+      // Load RSVPs for all outings (not just trips)
+      const rsvpsData = await getOutingRsvps(outingId);
+      setRsvps(rsvpsData);
+      
+      if (user) {
+        const userRsvpData = await getUserRsvp(outingId);
+        setUserRsvp(userRsvpData);
+      }
+
       // Find current user's attendance
       if (user) {
         const userAttendee = attendeesData.find((a) => a.user_id === user.id);
@@ -356,10 +380,19 @@ export default function OutingDetailPage() {
         setPaymentUserId(user.id);
       }
     } else {
-      // For non-trip outings, just load the bring list
+      // For non-trip outings, just load the bring list and RSVPs
       const bringListData = await getBringList({ outingId });
       setBringList(bringListData);
       setBringListLoading(false);
+      
+      // Load RSVPs
+      const rsvpsData = await getOutingRsvps(outingId);
+      setRsvps(rsvpsData);
+      
+      if (user) {
+        const userRsvpData = await getUserRsvp(outingId);
+        setUserRsvp(userRsvpData);
+      }
     }
 
     setLoading(false);
@@ -375,6 +408,18 @@ export default function OutingDetailPage() {
       setAttendees(attendeesData);
     }
     setUpdatingAttendance(false);
+  }
+
+  async function handleRsvpUpdate(status: RsvpStatus) {
+    setUpdatingRsvp(true);
+    const result = await setRsvp(outingId, status);
+    if (result.success && result.rsvp) {
+      setUserRsvp(result.rsvp);
+      // Reload RSVPs
+      const rsvpsData = await getOutingRsvps(outingId);
+      setRsvps(rsvpsData);
+    }
+    setUpdatingRsvp(false);
   }
 
   async function handleUpdate(e: React.FormEvent) {
@@ -1025,6 +1070,108 @@ export default function OutingDetailPage() {
     }
   }
 
+  // Compress image before upload (especially important for mobile)
+  async function compressImage(file: File): Promise<File> {
+    // Skip compression for files under 500KB
+    if (file.size < 500 * 1024) {
+      console.log(`Skipping compression for ${file.name} (already small)`);
+      return file;
+    }
+
+    return new Promise((resolve) => {
+      // Set timeout for compression (30 seconds)
+      const timeout = setTimeout(() => {
+        console.warn(`Compression timeout for ${file.name}, using original`);
+        resolve(file);
+      }, 30000);
+
+      try {
+        const reader = new FileReader();
+        
+        reader.onerror = () => {
+          clearTimeout(timeout);
+          console.error(`FileReader error for ${file.name}`);
+          resolve(file); // Fallback to original
+        };
+        
+        reader.onload = (e) => {
+          const img = new Image();
+          
+          img.onerror = () => {
+            clearTimeout(timeout);
+            console.error(`Image load error for ${file.name}`);
+            resolve(file); // Fallback to original
+          };
+          
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
+              
+              // Resize if larger than 1600px on longest side (smaller for better mobile performance)
+              const maxSize = 1600;
+              if (width > maxSize || height > maxSize) {
+                if (width > height) {
+                  height = (height / width) * maxSize;
+                  width = maxSize;
+                } else {
+                  width = (width / height) * maxSize;
+                  height = maxSize;
+                }
+              }
+              
+              canvas.width = width;
+              canvas.height = height;
+              
+              const ctx = canvas.getContext('2d');
+              if (!ctx) {
+                clearTimeout(timeout);
+                resolve(file); // Fallback if canvas context fails
+                return;
+              }
+              
+              ctx.drawImage(img, 0, 0, width, height);
+              
+              // Convert to blob with quality compression
+              canvas.toBlob(
+                (blob) => {
+                  clearTimeout(timeout);
+                  if (blob && blob.size < file.size) {
+                    // Only use compressed if it's actually smaller
+                    const compressedFile = new File([blob], file.name, {
+                      type: 'image/jpeg',
+                      lastModified: Date.now(),
+                    });
+                    console.log(`Compressed ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(blob.size/1024).toFixed(0)}KB`);
+                    resolve(compressedFile);
+                  } else {
+                    console.log(`Keeping original ${file.name} (compression didn't help)`);
+                    resolve(file); // Use original if compression didn't help
+                  }
+                },
+                'image/jpeg',
+                0.80 // 80% quality for better compression
+              );
+            } catch (err) {
+              clearTimeout(timeout);
+              console.error(`Canvas error for ${file.name}:`, err);
+              resolve(file);
+            }
+          };
+          
+          img.src = e.target?.result as string;
+        };
+        
+        reader.readAsDataURL(file);
+      } catch (err) {
+        clearTimeout(timeout);
+        console.error(`Compression error for ${file.name}:`, err);
+        resolve(file);
+      }
+    });
+  }
+
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (selectedFiles.length === 0) return;
@@ -1037,25 +1184,54 @@ export default function OutingDetailPage() {
 
     setUploading(true);
 
-    const formData = new FormData();
-    selectedFiles.forEach((file) => {
-      formData.append("files", file);
-    });
-    if (caption) formData.append("caption", caption);
-    formData.append("outingId", outingId);
+    try {
+      // Compress images one at a time (better for mobile memory)
+      setUploadProgress(`Preparing photos...`);
+      const compressedFiles: File[] = [];
+      
+      for (let i = 0; i < selectedFiles.length; i++) {
+        setUploadProgress(`Preparing ${i + 1}/${selectedFiles.length}...`);
+        const compressed = await compressImage(selectedFiles[i]);
+        compressedFiles.push(compressed);
+      }
 
-    const result = await uploadPhotos(groupId, formData);
+      setUploadProgress(`Uploading photos...`);
+      
+      const formData = new FormData();
+      compressedFiles.forEach((file) => {
+        formData.append("files", file);
+      });
+      if (caption) formData.append("caption", caption);
+      formData.append("outingId", outingId);
 
-    if (result.error) {
-      alert(result.error);
-    } else {
-      setShowUploadModal(false);
-      setSelectedFiles([]);
-      setCaption("");
-      loadData();
+      const result = await uploadPhotos(groupId, formData);
+
+      if (result.error) {
+        alert(`Upload failed: ${result.error}`);
+      } else if (result.warnings && result.warnings.length > 0) {
+        // Partial success
+        const successCount = result.photos?.length || 0;
+        alert(`Uploaded ${successCount} photo(s). Some failed:\n${result.warnings.join('\n')}`);
+        setShowUploadModal(false);
+        setSelectedFiles([]);
+        setCaption("");
+        setUploadProgress("");
+        loadData();
+      } else {
+        // Full success
+        setShowUploadModal(false);
+        setSelectedFiles([]);
+        setCaption("");
+        setUploadProgress("");
+        loadData();
+      }
+    } catch (error: any) {
+      console.error("Upload exception:", error);
+      alert(`Upload error: ${error.message || 'Unknown error. Please try again.'}`);
+    } finally {
+      setUploading(false);
+      setUploadProgress("");
     }
-
-    setUploading(false);
   }
 
   async function handleToggleFavorite(photoId: string, e: React.MouseEvent) {
@@ -1089,6 +1265,29 @@ export default function OutingDetailPage() {
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
+    
+    // Validate file count (reduce to 10 for mobile reliability)
+    if (files.length > 10) {
+      alert("Please select 10 or fewer photos at a time for best mobile performance.");
+      return;
+    }
+    
+    // Validate individual file sizes (50MB per file limit)
+    const maxFileSize = 50 * 1024 * 1024; // 50MB
+    const oversizedFiles = files.filter(f => f.size > maxFileSize);
+    if (oversizedFiles.length > 0) {
+      alert(`These files are too large (max 50MB each):\n${oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)}MB)`).join('\n')}`);
+      return;
+    }
+    
+    // Validate total size (100MB total for all files)
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    const maxTotalSize = 100 * 1024 * 1024; // 100MB total
+    if (totalSize > maxTotalSize) {
+      alert(`Total size (${(totalSize / 1024 / 1024).toFixed(1)}MB) exceeds 100MB. Please select fewer or smaller photos.`);
+      return;
+    }
+    
     setSelectedFiles(files);
   }
 
@@ -1250,6 +1449,12 @@ export default function OutingDetailPage() {
                     {goingCount} going{maybeCount > 0 ? ` · ${maybeCount} maybe` : ""}
                   </span>
                 )}
+                {!isTrip && rsvps.length > 0 && (
+                  <span className="text-sm text-slate-medium">
+                    {rsvps.filter(r => r.status === "going").length} going
+                    {rsvps.filter(r => r.status === "maybe").length > 0 ? ` · ${rsvps.filter(r => r.status === "maybe").length} maybe` : ""}
+                  </span>
+                )}
                 {!outing.cover_image_url && (
                   <button
                     onClick={() => setShowCoverModal(true)}
@@ -1319,6 +1524,45 @@ export default function OutingDetailPage() {
                     disabled={updatingAttendance}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                       userAttendance === "not_going"
+                        ? "bg-gray-300 text-white"
+                        : "bg-gray-100 text-slate-dark hover:bg-gray-200"
+                    }`}
+                  >
+                    ✗ Can&apos;t Go
+                  </button>
+                </div>
+              )}
+
+              {/* RSVP Buttons for regular outings */}
+              {!isTrip && outing.status === "upcoming" && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleRsvpUpdate("going")}
+                    disabled={updatingRsvp}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      userRsvp?.status === "going"
+                        ? "bg-green-500 text-white"
+                        : "bg-gray-100 text-slate-dark hover:bg-green-100"
+                    }`}
+                  >
+                    ✓ Going
+                  </button>
+                  <button
+                    onClick={() => handleRsvpUpdate("maybe")}
+                    disabled={updatingRsvp}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      userRsvp?.status === "maybe"
+                        ? "bg-golden-sun text-slate-dark"
+                        : "bg-gray-100 text-slate-dark hover:bg-golden-sun/30"
+                    }`}
+                  >
+                    ? Maybe
+                  </button>
+                  <button
+                    onClick={() => handleRsvpUpdate("not_going")}
+                    disabled={updatingRsvp}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      userRsvp?.status === "not_going"
                         ? "bg-gray-300 text-white"
                         : "bg-gray-100 text-slate-dark hover:bg-gray-200"
                     }`}
@@ -1417,6 +1661,62 @@ export default function OutingDetailPage() {
                             className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm"
                           >
                             {attendee.user?.display_name || attendee.user?.full_name}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* RSVPs for regular outings */}
+            {!isTrip && rsvps.length > 0 && (
+              <div className="card">
+                <h3 className="font-heading font-semibold text-lg mb-4">Who&apos;s Coming</h3>
+                
+                {rsvps.filter(r => r.status === "going").length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-sm text-slate-medium mb-3">
+                      Going ({rsvps.filter(r => r.status === "going").length})
+                    </h4>
+                    <div className="flex flex-wrap gap-3">
+                      {rsvps
+                        .filter((r) => r.status === "going")
+                        .map((rsvp) => (
+                          <div
+                            key={rsvp.user_id}
+                            className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg"
+                          >
+                            {rsvp.user?.avatar_url && (
+                              <img
+                                src={rsvp.user.avatar_url}
+                                alt={rsvp.user.display_name || ""}
+                                className="w-6 h-6 rounded-full"
+                              />
+                            )}
+                            <span className="text-sm font-medium text-slate-dark">
+                              {rsvp.user?.display_name || rsvp.user?.full_name}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {rsvps.filter(r => r.status === "maybe").length > 0 && (
+                  <div className="pt-4 border-t border-border">
+                    <h4 className="font-medium text-sm text-slate-medium mb-3">
+                      Maybe ({rsvps.filter(r => r.status === "maybe").length})
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {rsvps
+                        .filter((r) => r.status === "maybe")
+                        .map((rsvp) => (
+                          <span
+                            key={rsvp.user_id}
+                            className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm"
+                          >
+                            {rsvp.user?.display_name || rsvp.user?.full_name}
                           </span>
                         ))}
                     </div>
@@ -2982,7 +3282,7 @@ export default function OutingDetailPage() {
                         {selectedFiles.length} file{selectedFiles.length > 1 ? "s" : ""} selected
                       </p>
                       <p className="text-sm text-slate-medium mt-1">
-                        Click to change selection
+                        {(selectedFiles.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(1)}MB total · Click to change
                       </p>
                     </div>
                   ) : (
@@ -3002,7 +3302,7 @@ export default function OutingDetailPage() {
                       </svg>
                       <p className="font-medium text-slate-dark">Click to select photos</p>
                       <p className="text-sm text-slate-medium mt-1">
-                        You can select multiple files
+                        Max 10 files recommended for mobile
                       </p>
                     </div>
                   )}
@@ -3022,6 +3322,14 @@ export default function OutingDetailPage() {
                 />
               </div>
 
+              {uploadProgress && (
+                <div className="p-3 bg-electric-cyan/10 rounded-lg">
+                  <p className="text-sm text-electric-cyan font-medium text-center">
+                    {uploadProgress}
+                  </p>
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <button
                   type="button"
@@ -3031,6 +3339,7 @@ export default function OutingDetailPage() {
                     setCaption("");
                   }}
                   className="btn-secondary flex-1"
+                  disabled={uploading}
                 >
                   Cancel
                 </button>
@@ -3039,7 +3348,7 @@ export default function OutingDetailPage() {
                   disabled={selectedFiles.length === 0 || uploading}
                   className="btn-primary flex-1 disabled:opacity-50"
                 >
-                  {uploading ? "Uploading..." : "Upload"}
+                  {uploading ? uploadProgress || "Uploading..." : "Upload"}
                 </button>
               </div>
             </form>

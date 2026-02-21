@@ -472,7 +472,7 @@ export default function PollDetailPage() {
             <h3 className="font-heading font-semibold mb-4">Results</h3>
 
             {poll.poll_type === "multiple_choice" && (
-              <MultipleChoiceResults options={poll.options || []} />
+              <MultipleChoiceResults options={poll.options || []} showVoters={!poll.settings?.anonymous} />
             )}
 
             {poll.poll_type === "ranking" && (
@@ -673,7 +673,8 @@ function VotingOption({
   );
 }
 
-function MultipleChoiceResults({ options }: { options: PollOption[] }) {
+function MultipleChoiceResults({ options, showVoters = true }: { options: PollOption[]; showVoters?: boolean }) {
+  const [expandedOption, setExpandedOption] = useState<string | null>(null);
   const totalVotes = options.reduce((sum, o) => sum + (o.vote_count || 0), 0);
 
   return (
@@ -682,10 +683,13 @@ function MultipleChoiceResults({ options }: { options: PollOption[] }) {
         const percentage =
           totalVotes > 0 ? ((option.vote_count || 0) / totalVotes) * 100 : 0;
         const suggesterName = option.suggester?.display_name || option.suggester?.full_name;
+        const voters = option.votes || [];
+        const isExpanded = expandedOption === option.id;
+        
         return (
-          <div key={option.id}>
+          <div key={option.id} className="border border-gray-200 rounded-lg p-3">
             <div className="flex justify-between mb-1">
-              <div>
+              <div className="flex-1">
                 <span className="font-medium">{option.option_text}</span>
                 {suggesterName && (
                   <span className="text-xs text-slate-medium ml-2">by {suggesterName}</span>
@@ -695,12 +699,42 @@ function MultipleChoiceResults({ options }: { options: PollOption[] }) {
                 {option.vote_count || 0} ({Math.round(percentage)}%)
               </span>
             </div>
-            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-3 bg-gray-200 rounded-full overflow-hidden mb-2">
               <div
                 className="h-full bg-electric-cyan rounded-full transition-all"
                 style={{ width: `${percentage}%` }}
               />
             </div>
+            
+            {/* Show voters */}
+            {showVoters && voters.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setExpandedOption(isExpanded ? null : option.id)}
+                  className="text-xs text-electric-cyan hover:underline flex items-center gap-1"
+                >
+                  {isExpanded ? 'Hide' : 'Show'} voters ({voters.length})
+                  <svg className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {isExpanded && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {voters.map((vote) => (
+                      <div key={vote.id} className="flex items-center gap-1.5 px-2 py-1 bg-soft-lavender/20 rounded-full">
+                        <div className="w-5 h-5 bg-soft-lavender/50 rounded-full flex items-center justify-center text-xs font-medium">
+                          {(vote.user?.display_name || vote.user?.full_name || '?').charAt(0)}
+                        </div>
+                        <span className="text-xs text-slate-dark">
+                          {vote.user?.display_name || vote.user?.full_name || 'Anonymous'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
