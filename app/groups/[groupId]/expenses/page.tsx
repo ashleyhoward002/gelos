@@ -18,6 +18,7 @@ import {
   MemberBalance,
   ExpenseGuest,
 } from "@/lib/expenses";
+import ReceiptSplitter, { ReceiptData, ReceiptItem } from "@/components/expenses/ReceiptSplitter";
 import {
   ExpenseCategory,
   ExpenseSplitType,
@@ -78,6 +79,8 @@ export default function ExpensesPage() {
   const [showBalancesModal, setShowBalancesModal] = useState(false);
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [settleWithMember, setSettleWithMember] = useState<MemberBalance | null>(null);
+  const [showReceiptSplitter, setShowReceiptSplitter] = useState(false);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
 
   // Add expense form
   const [newDescription, setNewDescription] = useState("");
@@ -276,6 +279,31 @@ export default function ExpensesPage() {
     }
   }
 
+  async function handleReceiptSplitComplete(expenseData: {
+    description: string;
+    amount: number;
+    splits: { user_id?: string; guest_id?: string; amount: number }[];
+  }) {
+    const result = await createExpense(groupId, {
+      description: expenseData.description,
+      amount: expenseData.amount,
+      paid_by: currentUserId,
+      split_type: "custom",
+      category: "food",
+      expense_date: new Date().toISOString().split("T")[0],
+      outing_id: newTripId || undefined,
+      splits: expenseData.splits,
+    });
+
+    if (result.error) {
+      alert(result.error);
+    } else {
+      setShowReceiptSplitter(false);
+      setReceiptData(null);
+      loadData();
+    }
+  }
+
   async function handleDelete(expenseId: string) {
     if (!confirm("Are you sure you want to delete this expense?")) return;
 
@@ -388,6 +416,25 @@ export default function ExpensesPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Add Expense
+          </button>
+          <button
+            onClick={() => {
+              // Demo receipt data - in production this would come from OCR or manual entry
+              setReceiptData({
+                restaurant: "Split Receipt",
+                date: new Date().toLocaleDateString(),
+                items: [],
+                subtotal: 0,
+                tax: 0,
+                gratuity: 0,
+                total: 0,
+              });
+              setShowReceiptSplitter(true);
+            }}
+            className="btn-cyan flex items-center justify-center gap-2 px-4"
+          >
+            <span className="text-lg">🧾</span>
+            Split
           </button>
           <button
             onClick={() => router.push(`/groups/${groupId}/expenses/budget`)}
@@ -916,6 +963,32 @@ export default function ExpensesPage() {
                 Settle Up
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Splitter Modal */}
+      {showReceiptSplitter && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+          onClick={() => setShowReceiptSplitter(false)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ReceiptSplitter
+              groupId={groupId}
+              outingId={newTripId || undefined}
+              members={members}
+              guests={guests}
+              initialData={receiptData || undefined}
+              onComplete={handleReceiptSplitComplete}
+              onCancel={() => {
+                setShowReceiptSplitter(false);
+                setReceiptData(null);
+              }}
+            />
           </div>
         </div>
       )}

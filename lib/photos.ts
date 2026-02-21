@@ -1,7 +1,4 @@
-"use server";
-
-import { createServerSupabaseClient } from "./supabase-server";
-import { revalidatePath } from "next/cache";
+import { createClient } from './supabase';
 
 export interface Photo {
   id: string;
@@ -38,8 +35,8 @@ export interface DuplicateCheck {
 export async function checkForDuplicates(
   groupId: string,
   files: { name: string; size: number }[]
-): Promise<{ filename: string; size: number; existingPhoto: Photo }[]> {
-  const supabase = await createServerSupabaseClient();
+):Promise<{ filename: string; size: number; existingPhoto: Photo }[]> {
+  const supabase = createClient();
 
   // Get all photos in the group with their original filenames and sizes
   const { data: photos, error } = await supabase
@@ -77,7 +74,7 @@ export async function getPhotos(
   groupId: string,
   filter?: "all" | "favorites" | string // string for outing_id
 ) {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createClient();
 
   // Debug: Check if user is authenticated
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -147,7 +144,7 @@ export async function getPhotos(
 }
 
 export async function getPhoto(photoId: string) {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createClient();
 
   const { data: photo, error } = await supabase
     .from("photos")
@@ -181,7 +178,7 @@ export async function uploadPhoto(
   caption?: string,
   outingId?: string
 ) {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createClient();
 
   const {
     data: { user },
@@ -230,7 +227,6 @@ export async function uploadPhoto(
     return { error: insertError.message };
   }
 
-  revalidatePath(`/groups/${groupId}/photos`);
   return { success: true, photo };
 }
 
@@ -238,7 +234,7 @@ export async function uploadPhotos(
   groupId: string,
   formData: FormData
 ) {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createClient();
 
   const {
     data: { user },
@@ -260,24 +256,61 @@ export async function uploadPhotos(
     return { error: "No files provided" };
   }
 
+  // Limit: Max 20 files per upload
+  if (files.length > 20) {
+    return { error: "Too many files. Please upload 20 or fewer photos at a time." };
+  }
+
+  // Check individual file sizes (50MB per file)
+  const maxFileSize = 50 * 1024 * 1024; // 50MB per file
+  const oversizedFiles = files.filter(f => f.size > maxFileSize);
+  if (oversizedFiles.length > 0) {
+    return { 
+      error: `Some files exceed 50MB limit: ${oversizedFiles.map(f => f.name).join(', ')}` 
+    };
+  }
+
+  // Check total file size (limit: 100MB total)
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  const maxTotalSize = 100 * 1024 * 1024; // 100MB
+  if (totalSize > maxTotalSize) {
+    return { error: `Total file size exceeds 100MB. Please reduce the number or size of photos.` };
+  }
+
+  console.log(`Starting upload of ${files.length} files, total size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+
   const uploadedPhotos: { id: string; file_url: string }[] = [];
   const errors: string[] = [];
 
   for (const file of files) {
-    // Generate unique filename
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${groupId}/${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    try {
+      console.log(`Uploading ${file.name} (${(file.size / 1024).toFixed(2)}KB)...`);
+      
+      // Generate unique filename
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${groupId}/${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-    // Upload to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from("photos")
-      .upload(fileName, file);
+      // Upload to Supabase Storage with timeout
+      const uploadPromise = supabase.storage
+        .from("photos")
+        .upload(fileName, file);
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Upload timeout')), 120000) // 120 second timeout for mobile
+      );
 
-    if (uploadError) {
-      console.error("Error uploading file:", uploadError);
-      errors.push(`Failed to upload ${file.name}`);
-      continue;
-    }
+      const { error: uploadError } = await Promise.race([
+        uploadPromise,
+        timeoutPromise
+      ]) as any;
+
+      if (uploadError) {
+        console.error("Error uploading file:", uploadError);
+        errors.push(`Failed to upload ${file.name}: ${uploadError.message || 'Unknown error'}`);
+        continue;
+      }
+      
+      console.log(`Successfully uploaded ${file.name}`);
 
     // Get public URL
     const { data: urlData } = supabase.storage
@@ -308,7 +341,13 @@ export async function uploadPhotos(
     }
 
     uploadedPhotos.push(photo);
+    } catch (err: any) {
+      console.error(`Exception uploading ${file.name}:`, err);
+      errors.push(`Failed to upload ${file.name}: ${err.message || 'Unknown error'}`);
+    }
   }
+  
+  console.log(`Upload complete: ${uploadedPhotos.length} succeeded, ${errors.length} failed`);
 
   // Create notifications for all group members
   if (uploadedPhotos.length > 0) {
@@ -345,8 +384,6 @@ export async function uploadPhotos(
     }
   }
 
-  revalidatePath(`/groups/${groupId}/photos`);
-
   if (errors.length > 0) {
     return {
       success: true,
@@ -359,7 +396,7 @@ export async function uploadPhotos(
 }
 
 export async function toggleFavorite(photoId: string, groupId: string) {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createClient();
 
   // Get current favorite status
   const { data: photo } = await supabase
@@ -382,7 +419,6 @@ export async function toggleFavorite(photoId: string, groupId: string) {
     return { error: error.message };
   }
 
-  revalidatePath(`/groups/${groupId}/photos`);
   return { success: true, is_favorite: !photo.is_favorite };
 }
 
@@ -391,7 +427,7 @@ export async function updatePhotoCaption(
   caption: string,
   groupId: string
 ) {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createClient();
 
   const {
     data: { user },
@@ -412,7 +448,6 @@ export async function updatePhotoCaption(
     return { error: error.message };
   }
 
-  revalidatePath(`/groups/${groupId}/photos`);
   return { success: true };
 }
 
@@ -421,7 +456,7 @@ export async function updatePhoto(
   groupId: string,
   updates: { caption?: string; outing_id?: string | null }
 ) {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createClient();
 
   const {
     data: { user },
@@ -454,12 +489,11 @@ export async function updatePhoto(
     return { error: error.message };
   }
 
-  revalidatePath(`/groups/${groupId}/photos`);
   return { success: true, photo };
 }
 
 export async function deletePhoto(photoId: string, groupId: string) {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createClient();
 
   const {
     data: { user },
@@ -503,14 +537,13 @@ export async function deletePhoto(photoId: string, groupId: string) {
     return { error: error.message };
   }
 
-  revalidatePath(`/groups/${groupId}/photos`);
   return { success: true };
 }
 
 // ============ BATCH OPERATIONS ============
 
 export async function batchDeletePhotos(photoIds: string[], groupId: string) {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createClient();
 
   const {
     data: { user },
@@ -559,7 +592,6 @@ export async function batchDeletePhotos(photoIds: string[], groupId: string) {
     return { error: error.message };
   }
 
-  revalidatePath(`/groups/${groupId}/photos`);
   return { success: true, count: photos.length };
 }
 
@@ -568,7 +600,7 @@ export async function batchUpdateOuting(
   groupId: string,
   outingId: string | null
 ) {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createClient();
 
   const {
     data: { user },
@@ -595,7 +627,6 @@ export async function batchUpdateOuting(
     return { error: error.message };
   }
 
-  revalidatePath(`/groups/${groupId}/photos`);
   return { success: true, count: updated?.length || 0 };
 }
 
@@ -604,7 +635,7 @@ export async function batchToggleFavorite(
   groupId: string,
   setFavorite: boolean
 ) {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createClient();
 
   if (photoIds.length === 0) {
     return { error: "No photos selected" };
@@ -621,6 +652,5 @@ export async function batchToggleFavorite(
     return { error: error.message };
   }
 
-  revalidatePath(`/groups/${groupId}/photos`);
   return { success: true, count: updated?.length || 0 };
 }
