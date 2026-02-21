@@ -3,12 +3,12 @@
 -- This combines the necessary setup from multiple schema files
 
 -- ============================================
--- STEP 1: Create helper functions (required for RLS)
+-- STEP 1: Create helper functions (if not exists)
 -- ============================================
+-- Note: is_group_member function likely already exists with policies depending on it
+-- Only create if it doesn't exist
 
-DROP FUNCTION IF EXISTS public.is_group_member(UUID);
-
-CREATE FUNCTION public.is_group_member(check_group_id UUID)
+CREATE OR REPLACE FUNCTION public.is_group_member(check_group_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
