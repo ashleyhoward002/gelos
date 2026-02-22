@@ -27,6 +27,8 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.vscode/mcp.json
+.vscode/settings.json
 
 # vercel
 .vercel
