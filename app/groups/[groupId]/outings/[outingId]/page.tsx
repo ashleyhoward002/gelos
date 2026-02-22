@@ -243,6 +243,9 @@ export default function OutingDetailPage() {
   const [userRsvp, setUserRsvp] = useState<OutingRsvp | null>(null);
   const [updatingRsvp, setUpdatingRsvp] = useState(false);
 
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
   // Cover image state
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -268,6 +271,14 @@ export default function OutingDetailPage() {
   useEffect(() => {
     loadData();
   }, [groupId, outingId]);
+
+  // Toast auto-hide
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   async function loadData() {
     setLoading(true);
@@ -412,12 +423,21 @@ export default function OutingDetailPage() {
 
   async function handleRsvpUpdate(status: RsvpStatus) {
     setUpdatingRsvp(true);
-    const result = await setRsvp(outingId, status);
-    if (result.success && result.rsvp) {
-      setUserRsvp(result.rsvp);
-      // Reload RSVPs
-      const rsvpsData = await getOutingRsvps(outingId);
-      setRsvps(rsvpsData);
+    try {
+      const result = await setRsvp(outingId, status);
+      if (result.success && result.rsvp) {
+        setUserRsvp(result.rsvp);
+        // Reload RSVPs
+        const rsvpsData = await getOutingRsvps(outingId);
+        setRsvps(rsvpsData);
+        const statusLabel = status === "going" ? "Going" : status === "maybe" ? "Maybe" : "Can't Go";
+        setToast({ message: `RSVP'd as ${statusLabel}!`, type: "success" });
+      } else {
+        setToast({ message: result.error || "Failed to update RSVP", type: "error" });
+      }
+    } catch (error) {
+      console.error("Error updating RSVP:", error);
+      setToast({ message: "Failed to update RSVP", type: "error" });
     }
     setUpdatingRsvp(false);
   }
@@ -1225,9 +1245,10 @@ export default function OutingDetailPage() {
         setUploadProgress("");
         loadData();
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Upload exception:", error);
-      alert(`Upload error: ${error.message || 'Unknown error. Please try again.'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error. Please try again.';
+      alert(`Upload error: ${errorMessage}`);
     } finally {
       setUploading(false);
       setUploadProgress("");
@@ -4394,6 +4415,17 @@ export default function OutingDetailPage() {
           onDelete={handleKanbanTaskDelete}
           saving={savingKanbanTask}
         />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed bottom-4 left-4 right-4 max-w-md mx-auto p-4 rounded-xl shadow-lg z-50 ${
+            toast.type === "success" ? "bg-green-500" : "bg-red-500"
+          } text-white font-medium text-center`}
+        >
+          {toast.message}
+        </div>
       )}
     </div>
   );

@@ -13,7 +13,43 @@ import {
   Post,
 } from "@/lib/posts";
 import Header from "@/components/Header";
-import { Heart, MessageCircle, Trash2, Send, Image as ImageIcon } from "lucide-react";
+
+// SVG Icon components
+const HeartIcon = ({ filled = false, size = 20 }: { filled?: boolean; size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  </svg>
+);
+
+const MessageCircleIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  </svg>
+);
+
+const TrashIcon = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
+const SendIcon = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </svg>
+);
+
+const ImageIcon = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <polyline points="21 15 16 10 5 21" />
+  </svg>
+);
 
 export default function FeedPage() {
   const params = useParams();
@@ -221,7 +257,7 @@ export default function FeedPage() {
                 onClick={removeImage}
                 className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
               >
-                <Trash2 size={16} />
+                <TrashIcon size={16} />
               </button>
             </div>
           )}
@@ -291,7 +327,7 @@ export default function FeedPage() {
                       onClick={() => handleDeletePost(post.id)}
                       className="text-slate-medium hover:text-red-500 transition-colors"
                     >
-                      <Trash2 size={18} />
+                      <TrashIcon size={18} />
                     </button>
                   )}
                 </div>
@@ -318,10 +354,7 @@ export default function FeedPage() {
                         : "text-slate-medium hover:text-neon-purple"
                     }`}
                   >
-                    <Heart
-                      size={20}
-                      fill={post.has_liked ? "currentColor" : "none"}
-                    />
+                    <HeartIcon size={20} filled={post.has_liked} />
                     <span>{post.likes_count}</span>
                   </button>
 
@@ -329,7 +362,7 @@ export default function FeedPage() {
                     onClick={() => toggleComments(post.id)}
                     className="flex items-center gap-2 text-slate-medium hover:text-electric-cyan transition-colors"
                   >
-                    <MessageCircle size={20} />
+                    <MessageCircleIcon size={20} />
                     <span>{post.comments_count}</span>
                   </button>
                 </div>
@@ -370,7 +403,7 @@ export default function FeedPage() {
                                   onClick={() => handleDeleteComment(comment.id)}
                                   className="text-slate-medium hover:text-red-500 transition-colors"
                                 >
-                                  <Trash2 size={14} />
+                                  <TrashIcon size={14} />
                                 </button>
                               )}
                             </div>
@@ -415,7 +448,7 @@ export default function FeedPage() {
                         disabled={!commentTexts[post.id]?.trim()}
                         className="btn-primary disabled:opacity-50"
                       >
-                        <Send size={18} />
+                        <SendIcon size={18} />
                       </button>
                     </div>
                   </div>

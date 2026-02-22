@@ -17,6 +17,8 @@ import {
 } from "@/lib/photos";
 import { getOutingsForSelect } from "@/lib/outings";
 import Header from "@/components/Header";
+import { MasonryGrid } from "@/components/photos/MasonryGrid";
+import { TimelineView } from "@/components/photos/TimelineView";
 
 // Color palette for uploaders
 const UPLOADER_COLORS = [
@@ -43,7 +45,7 @@ export default function PhotosPage() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
 
   // View & Filter state
-  const [view, setView] = useState<"grid" | "event" | "uploader">("grid");
+  const [view, setView] = useState<"grid" | "timeline" | "event" | "uploader">("grid");
   const [filterEvent, setFilterEvent] = useState<string | null>(null);
   const [filterUploader, setFilterUploader] = useState<string | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -81,8 +83,8 @@ export default function PhotosPage() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   // Derived data
-  const uploaders = [...new Set(photos.map((p) => p.uploader?.display_name || p.uploader?.full_name || "Unknown"))];
-  const events = [...new Set(photos.filter((p) => p.outing).map((p) => p.outing!.title))];
+  const uploaders = Array.from(new Set(photos.map((p) => p.uploader?.display_name || p.uploader?.full_name || "Unknown")));
+  const events = Array.from(new Set(photos.filter((p) => p.outing).map((p) => p.outing!.title)));
 
   // Uploader color map
   const uploaderColors: Record<string, string> = {};
@@ -429,8 +431,9 @@ export default function PhotosPage() {
         setToast({ message: `${count} photo${count !== 1 ? 's' : ''} uploaded!`, type: "success" });
         loadData();
       }
-    } catch (err: any) {
-      setToast({ message: err.message || "Upload failed", type: "error" });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Upload failed";
+      setToast({ message: errorMessage, type: "error" });
     }
     setUploading(false);
   }
@@ -580,6 +583,7 @@ export default function PhotosPage() {
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-4">
           {[
             { key: "grid" as const, label: "All" },
+            { key: "timeline" as const, label: "Timeline" },
             { key: "event" as const, label: "By Event" },
             { key: "uploader" as const, label: "By Person" },
           ].map((v) => (
@@ -775,43 +779,35 @@ export default function PhotosPage() {
               </button>
             )}
           </div>
+        ) : view === "timeline" ? (
+          /* Timeline View */
+          <TimelineView
+            photos={filtered}
+            onPhotoClick={(photoId) => openLightbox(photoId)}
+            onToggleFavorite={handleToggleFavorite}
+            onDoubleTap={handleDoubleTap}
+            selectedPhotos={selectedPhotos}
+            selectionMode={selectionMode}
+            uploaderColors={uploaderColors}
+            getUploaderName={getUploaderName}
+            doubleTapAnim={doubleTapAnim}
+            columns={2}
+          />
         ) : (
           /* Masonry Grid */
           (view === "grid" || filterEvent || filterUploader) && (
-            <div className="flex gap-2">
-              {/* Column 1 */}
-              <div className="flex-1 flex flex-col gap-2">
-                {filtered.filter((_, i) => i % 2 === 0).map((photo) => (
-                  <PhotoCard
-                    key={photo.id}
-                    photo={photo}
-                    uploaderColor={uploaderColors[getUploaderName(photo)]}
-                    isSelected={selectedPhotos.has(photo.id)}
-                    selectionMode={selectionMode}
-                    onOpen={() => openLightbox(photo.id)}
-                    onToggleFavorite={(e) => handleToggleFavorite(photo.id, e)}
-                    onDoubleTap={() => handleDoubleTap(photo.id)}
-                    doubleTapAnim={doubleTapAnim === photo.id}
-                  />
-                ))}
-              </div>
-              {/* Column 2 */}
-              <div className="flex-1 flex flex-col gap-2">
-                {filtered.filter((_, i) => i % 2 === 1).map((photo) => (
-                  <PhotoCard
-                    key={photo.id}
-                    photo={photo}
-                    uploaderColor={uploaderColors[getUploaderName(photo)]}
-                    isSelected={selectedPhotos.has(photo.id)}
-                    selectionMode={selectionMode}
-                    onOpen={() => openLightbox(photo.id)}
-                    onToggleFavorite={(e) => handleToggleFavorite(photo.id, e)}
-                    onDoubleTap={() => handleDoubleTap(photo.id)}
-                    doubleTapAnim={doubleTapAnim === photo.id}
-                  />
-                ))}
-              </div>
-            </div>
+            <MasonryGrid
+              photos={filtered}
+              onPhotoClick={(photoId) => openLightbox(photoId)}
+              onToggleFavorite={handleToggleFavorite}
+              onDoubleTap={handleDoubleTap}
+              selectedPhotos={selectedPhotos}
+              selectionMode={selectionMode}
+              uploaderColors={uploaderColors}
+              getUploaderName={getUploaderName}
+              doubleTapAnim={doubleTapAnim}
+              columns={2}
+            />
           )
         )}
 

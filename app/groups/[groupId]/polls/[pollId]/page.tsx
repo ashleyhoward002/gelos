@@ -134,16 +134,34 @@ export default function PollDetailPage() {
 
       if (result.error) {
         setToast({ message: result.error, type: "error" });
-      } else {
+      } else if (result.option) {
+        // Optimistically update the poll state with the new option
+        setPoll((prevPoll) => {
+          if (!prevPoll) return prevPoll;
+          return {
+            ...prevPoll,
+            options: [
+              ...(prevPoll.options || []),
+              {
+                ...result.option,
+                votes: [],
+                vote_count: 0,
+                suggester: null,
+              } as PollOption,
+            ],
+          };
+        });
         setNewOptionText("");
         setNewOptionDate("");
         setShowAddOption(false);
         setToast({ message: "Option added!", type: "success" });
+        // Background refresh for full data
         loadData();
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error adding option:", err);
-      setToast({ message: err.message || "Failed to add option", type: "error" });
+      const errorMessage = err instanceof Error ? err.message : "Failed to add option";
+      setToast({ message: errorMessage, type: "error" });
     }
 
     setAddingOption(false);

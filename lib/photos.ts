@@ -218,6 +218,8 @@ export async function uploadPhoto(
       uploaded_by: user.id,
       file_url: fileUrl,
       caption: caption?.trim() || null,
+      original_filename: file.name,
+      file_size: file.size,
     })
     .select()
     .single();
@@ -302,7 +304,7 @@ export async function uploadPhotos(
       const { error: uploadError } = await Promise.race([
         uploadPromise,
         timeoutPromise
-      ]) as any;
+      ]) as { error: Error | null };
 
       if (uploadError) {
         console.error("Error uploading file:", uploadError);
@@ -341,9 +343,10 @@ export async function uploadPhotos(
     }
 
     uploadedPhotos.push(photo);
-    } catch (err: any) {
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error(`Exception uploading ${file.name}:`, err);
-      errors.push(`Failed to upload ${file.name}: ${err.message || 'Unknown error'}`);
+      errors.push(`Failed to upload ${file.name}: ${errorMessage}`);
     }
   }
   

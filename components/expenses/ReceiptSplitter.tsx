@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { ExpenseGuest } from "@/lib/expenses";
+import ReceiptOCR from "./ReceiptOCR";
 
 // Receipt item from OCR or manual entry
 export interface ReceiptItem {
@@ -85,6 +86,7 @@ export default function ReceiptSplitter({
 }: Props) {
   // Steps: -1=enter items, 0=mode, 1=assign items, 2=tip, 3=summary
   const [step, setStep] = useState(initialData?.items.length ? 0 : -1);
+  const [showOCR, setShowOCR] = useState(false);
   const [splitMode, setSplitMode] = useState<"equal" | "itemize" | null>(null);
   const [assignments, setAssignments] = useState<Record<string, string[]>>({});
   const [tipMode, setTipMode] = useState<"proportional" | "equal" | "custom">("proportional");
@@ -296,8 +298,23 @@ export default function ReceiptSplitter({
     }
   };
 
-  // Step -1: Enter items manually
+  // Step -1: Enter items manually or via OCR
   if (step === -1) {
+    // Show OCR component
+    if (showOCR) {
+      return (
+        <ReceiptOCR
+          onComplete={(data) => {
+            setItems(data.items);
+            setTaxAmount(data.tax?.toString() || "");
+            setTipAmount(data.gratuity?.toString() || "");
+            setShowOCR(false);
+          }}
+          onCancel={() => setShowOCR(false)}
+        />
+      );
+    }
+
     return (
       <div className="space-y-4">
         {/* Header */}
@@ -306,6 +323,20 @@ export default function ReceiptSplitter({
           <h2 className="font-heading font-bold text-xl">Enter Receipt Items</h2>
           <p className="text-sm text-slate-medium">Add items from your receipt to split</p>
         </div>
+
+        {/* OCR Option - show only when no items yet */}
+        {items.length === 0 && (
+          <button
+            onClick={() => setShowOCR(true)}
+            className="w-full p-4 border-2 border-dashed border-electric-cyan/30 rounded-xl hover:border-electric-cyan/50 transition-colors flex items-center justify-center gap-3"
+          >
+            <span className="text-2xl">📷</span>
+            <div className="text-left">
+              <p className="font-semibold text-slate-dark">Scan Receipt</p>
+              <p className="text-xs text-slate-medium">Use camera to auto-detect items</p>
+            </div>
+          </button>
+        )}
 
         {/* Restaurant name */}
         <div>
