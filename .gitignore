@@ -42,3 +42,11 @@ GELOS_README.md
 Gelos.jsx
 demo.html
 storageWrapper.js
+
+# editor / IDE
+.idea/
+.vscode/
+
+# Claude Code
+.claude/
+.mcp.json
